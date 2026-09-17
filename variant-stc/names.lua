@@ -3,7 +3,7 @@
 -- installé (coexistence « 1 de chaque par surface »). Pas de coffre à blueprints.
 return {
   source      = "stc",
-  version     = "1.3.0",                   -- semver publié (mod Factorio 2.1 uniquement)
+  version     = "1.3.1",                   -- semver publié (mod Factorio 2.1 uniquement)
   mod         = "train-foundry-stc",       -- nom du mod (chemin __<mod>__/graphics)
   building    = "tfstc-foundry",
   rail        = "tfstc-rail",
@@ -36,4 +36,7 @@ return {
   -- avant le nôtre (dépendance), donc le nom est déjà à jour quand on le lit.
   tech_prereq         = { "smart-train-combinator" },
   tech_prereq_nullius = { "nullius-smart-train-combinator" },
+  -- Pyanodon : comme en vanilla, la fonderie STC reste sous la techno de STC,
+  -- qui porte déjà le recalage Py — ses prérequis sont hérités par transitivité.
+  tech_prereq_py      = { "smart-train-combinator" },
 }

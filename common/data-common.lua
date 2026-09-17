@@ -543,6 +543,58 @@ data:extend({
 })
 
 -- ============================================================================
+-- Compatibilité Pyanodon (techno + recette communes)
+--
+-- Py recâble les branches rail et combinateur, ce qui laisse le coût vanilla
+-- accroché à des packs dont tout le voisinage s'est débarrassé :
+--   * automated-rail-transportation perd son pack logistique (pycoalprocessing
+--     base-updates.lua) -> 200 x automation seul.
+--   * advanced-combinators troque le chemical contre py-science-pack-1 et ne
+--     garde que circuit-network en prérequis.
+-- Exiger un pack chemical ici enfermerait la fonderie derrière une branche que
+-- Py a justement écartée de ce chemin, d'où le recalage sur py-science-pack-1.
+--
+-- La recette perd ses 20 éléments de moteur électrique et ses 50 cartes
+-- avancées, remplacés par 100 cartes simples : les deux n'arrivent que bien
+-- après la branche rail (le moteur électrique traîne derrière toute la chaîne
+-- aluminium/duralumin), ce qui rendrait la fonderie inatteignable au moment où
+-- elle a un sens. Avec pyhightech la carte simple n'est plus celle de vanilla
+-- mais toute une chaîne (pcb1 + tubes + condensateurs + résistances), donc le
+-- coût reste conséquent. Pas de solder ajouté : Py n'en met pas sur la carte
+-- simple (pyrawores data-updates.lua, ligne explicitement commentée).
+--
+-- Conditionné à pycoalprocessing : le mod socle que tout pack Py tire, et celui
+-- qui opère le recâblage combinateur sur lequel on s'aligne.
+-- ============================================================================
+if mods["pycoalprocessing"] then
+  local tech = data.raw.technology[MAIN]
+  tech.prerequisites = tech_prereq(names.tech_prereq_py, tech.prerequisites)
+  -- py-science-pack-1 vient de pyalienlife, pas du socle : sans lui (PyCoalTBA
+  -- seul) la techno réclamerait un pack inexistant et planterait au chargement.
+  -- Même garde que Py sur advanced-combinators (base-updates.lua).
+  tech.unit = {
+    count = 250,
+    ingredients = mods["pyalienlife"] and {
+      { "automation-science-pack", 1 },
+      { "py-science-pack-1",       1 },
+    } or {
+      { "automation-science-pack", 1 },
+      { "logistic-science-pack",   1 },
+    },
+    time = 45,
+  }
+
+  data.raw.recipe[MAIN].ingredients = {
+    { type = "item", name = "steel-plate",        amount = 200 },
+    { type = "item", name = "concrete",           amount = 1000 },
+    { type = "item", name = "electronic-circuit", amount = 100 },
+    { type = "item", name = "rail",               amount = 30 },
+    { type = "item", name = "rail-signal",        amount = 2 },
+    { type = "item", name = "steel-chest",        amount = 4 },
+  }
+end
+
+-- ============================================================================
 -- Compatibilité Nullius (le bâtiment/recette/techno, communs)
 -- ============================================================================
 if mods["nullius"] then

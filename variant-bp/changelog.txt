@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.3.1
+Date: 2026-09-16
+  Compatibility:
+    - Pyanodon support. The technology no longer keeps its vanilla cost when a Py pack is installed:
+      Py rewires the rail and combinator branches, so asking for a chemical science pack gated the
+      foundry behind a branch Py deliberately moved off this path. It now costs 250 x automation +
+      py science pack 1, and falls back to automation + logistic when pyalienlife is absent, since
+      that pack comes from it.
+    - The recipe drops its 20 electric engine units and 50 advanced circuits under Py, and asks for
+      100 electronic circuits instead. Both were reachable only long after the rail branch -- the
+      electric engine sits behind the whole aluminium and duralumin chain -- which put the foundry
+      out of reach at the point where it is actually useful. With pyhightech an electronic circuit
+      is no longer the vanilla one either, but a full board chain, so the cost stays substantial.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.3.0
 Date: 2026-08-26
   Changes:
