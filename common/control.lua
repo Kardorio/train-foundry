@@ -33,10 +33,14 @@ local PREVIEW_SPRITE = names.mod .. "-preview"
 -- Déco portique/grue dessinée au-dessus des voies (rendering.draw_sprite). Valeurs
 -- de position/échelle calées en jeu.
 local ROOF_SPRITE = names.mod .. "-roof"
-local ROOF_SHIFT_X = 1   -- calé en jeu pour centrer le portique sur les voies
-local ROOF_SHIFT_Y = 5
-local ROOF_SCALE = 1
+local ROOF_SHIFT_X = 0.5
+local ROOF_SHIFT_Y = 0
+local ROOF_SCALE = 0.695
 local ROOF_LAYER = "higher-object-above"
+
+local WORK_BASE_ANIMATION = names.mod .. "-work-base"
+local WORK_GLOW_ANIMATION = names.mod .. "-work-glow"
+local WORK_SPARK_ANIMATION = names.mod .. "-work-sparks"
 
 -- Le carburant est-il géré en mode GÉNÉRIQUE (meilleur carburant débloqué dispo +
 -- interruption Refuel) pour cette fonderie ? Toujours en variante STC (pas de
@@ -195,6 +199,10 @@ local function migrate_all()
       end
       st.chain_sprites = nil
     end
+    if st.platform_render and st.platform_render.valid then
+      st.platform_render.destroy()
+    end
+    st.platform_render = nil
     if not (st.entity and st.entity.valid) then
       composite.destroy(st)
       storage.foundries[un] = nil
@@ -208,10 +216,8 @@ local function migrate_all()
       st.side_west = st.side_west or {}
       st.side_east = st.side_east or {}
       -- Sol pavé (ajouté après) : posé si absent.
-      if not (st.floor_saved and #st.floor_saved > 0) then
-        st.floor_saved = {}
-        composite.lay_floor(st)
-      end
+      st.floor_saved = st.floor_saved or {}
+      composite.lay_floor(st)
     else
       -- MAÎTRE : champs de production + enfants.
       st.templates = st.templates or {}
@@ -242,10 +248,8 @@ local function migrate_all()
       composite.ensure_circuit(st)
       if names.has_bpchest then composite.ensure_bpchest(st) end
       -- Sol pavé (ajouté après) : posé si absent.
-      if not (st.floor_saved and #st.floor_saved > 0) then
-        st.floor_saved = {}
-        composite.lay_floor(st)
-      end
+      st.floor_saved = st.floor_saved or {}
+      composite.lay_floor(st)
       -- Enceinte de murs (statique + colonnes). La 2e voie (recyclage) est gérée
       -- par refresh_chain_track (rebuild_deco_track) selon st.deco, appelé plus bas.
       st.rails_deco = st.rails_deco or {}
@@ -448,6 +452,77 @@ end
 
 local function refresh_all_roofs()
   for _, st in pairs(storage.foundries) do ensure_roof(st) end
+end
+
+local function destroy_work_renders(st)
+  for _, render in ipairs(st.work_renders or {}) do
+    if render and render.valid then render.destroy() end
+  end
+  st.work_renders = nil
+end
+
+local function ensure_work_renders(st)
+  if not (st and st.entity and st.entity.valid) then return end
+  local valid = st.work_renders and #st.work_renders == 10
+  if valid then
+    for _, render in ipairs(st.work_renders) do
+      if not (render and render.valid) then valid = false break end
+    end
+  end
+  if valid then return end
+  destroy_work_renders(st)
+
+  local entity = st.entity
+  local function animation(name, offset, scale, speed, layer, frame_offset)
+    return rendering.draw_animation({
+      animation = name,
+      target = { entity = entity, offset = offset },
+      surface = entity.surface,
+      render_layer = layer,
+      x_scale = scale,
+      y_scale = scale,
+      animation_speed = speed,
+      animation_offset = frame_offset or 0,
+    })
+  end
+
+  local function work_light(offset, scale, intensity)
+    return rendering.draw_light({
+      sprite = "utility/light_medium",
+      target = { entity = entity, offset = offset },
+      surface = entity.surface,
+      color = { r = 1, g = 0.32, b = 0.04, a = 1 },
+      scale = scale,
+      intensity = intensity,
+      minimum_darkness = 0,
+    })
+  end
+
+  st.work_renders = {
+    animation(WORK_BASE_ANIMATION, { 0.5, 0 }, 0.695, 0.15, "lower-object"),
+    animation(WORK_GLOW_ANIMATION, { -7.6, -2.7 }, 0.95, 0.16,
+      "higher-object-under"),
+    animation(WORK_GLOW_ANIMATION, { 0.45, -2.6 }, 0.95, 0.19,
+      "higher-object-under", 2),
+    animation(WORK_GLOW_ANIMATION, { 8.15, -2.7 }, 0.95, 0.14,
+      "higher-object-under", 5),
+    animation(WORK_SPARK_ANIMATION, { -7.6, -2.7 }, 0.45, 0.11,
+      "higher-object-under"),
+    animation(WORK_SPARK_ANIMATION, { 0.45, -2.6 }, 0.45, 0.14,
+      "higher-object-under", 4),
+    animation(WORK_SPARK_ANIMATION, { 8.15, -2.7 }, 0.45, 0.095,
+      "higher-object-under", 8),
+    work_light({ -7.6, -2.7 }, 3.2, 0.72),
+    work_light({ 0.45, -2.6 }, 3.6, 0.82),
+    work_light({ 8.15, -2.7 }, 3.2, 0.72),
+  }
+end
+
+local function refresh_chain_work_renders(master)
+  local active = master.work and master.work.phase == "building"
+  for _, st in ipairs(chain_states(master)) do
+    if active then ensure_work_renders(st) else destroy_work_renders(st) end
+  end
 end
 
 -- APERÇU sur un GHOST posé (Alt+clic / drones en attente) : le ghost natif n'affiche
@@ -914,6 +989,7 @@ script.on_nth_tick(TICK_INTERVAL, function()
     if st.role ~= "extension" and st.entity and st.entity.valid then
       if names.has_bpchest then book_changed[un] = sync_templates(st) end
       process_foundry(st)
+      refresh_chain_work_renders(st)
       builder.update_circuit(st)
       builder.check_recycle(st)  -- déconstruit un train arrêté à la gare de recyclage
     end
@@ -1961,5 +2037,3 @@ commands.add_command(names.mod .. "-debug", "État de la Train Foundry survolée
     player.print("[tf-debug] poteau = MANQUANT")
   end
 end)
-
-

@@ -28,6 +28,23 @@ local GATE       = names.gate
 local GFX  = "__" .. names.mod .. "__/graphics/"
 local ICON = GFX .. "foundry-icon.png"
 
+local platform_tile = table.deepcopy(data.raw.tile["stone-path"])
+local refined_tile = data.raw.tile["refined-concrete"]
+platform_tile.name = names.mod .. "-platform-tile"
+platform_tile.order = "a[artificial]-a[tier-1]-z[train-foundry-platform]"
+platform_tile.variants = table.deepcopy(refined_tile.variants)
+platform_tile.variants.material_background = {
+  picture = GFX .. "foundry-platform-tile-v1.png",
+  count = 8,
+  scale = 0.5,
+}
+platform_tile.transitions = table.deepcopy(refined_tile.transitions)
+platform_tile.transitions_between_transitions =
+  table.deepcopy(refined_tile.transitions_between_transitions)
+platform_tile.transition_overlay_layer_offset =
+  refined_tile.transition_overlay_layer_offset
+platform_tile.map_color = { 49, 48, 45 }
+
 -- Styles GUI : slots d'ingrédients teintés vert (dispo) / rouge (manquant).
 -- Dérivés de slot_button avec un fond de couleur uni, pour ne pas dépendre
 -- d'un style vanilla qui n'existe pas dans toutes les versions.
@@ -183,24 +200,12 @@ input.collision_box = { { -0.35, -1.35 }, { 0.35, 1.35 } }
 input.selection_box = { { -0.5, -1.5 }, { 0.5, 1.5 } }
 input.tile_height = 2
 input.tile_width = 1
--- Sprite du coffre 1×2 VERTICAL : le sprite « tall steel chest » du mod « Wide
--- Containers Assets » de Lebothegizebo (licence MIT), COPIÉ dans nos graphics
--- (foundry-input.png + ombre) — pas de dépendance (le mod n'existe pas en 2.1).
--- Crédit dans LICENSE et les README. Déclaration calquée sur wide-steel-chests
--- (vertical_picture) : sprite + ombre, scale 0.5, shift by_pixel (÷32).
 input.picture = {
-  layers = {
-    {
-      filename = GFX .. "foundry-input.png",
-      priority = "extra-high", scale = 0.5, width = 64, height = 138,
-      shift = { -0.25 / 32, -2 / 32 },
-    },
-    {
-      filename = GFX .. "foundry-input-shadow.png",
-      priority = "extra-high", scale = 0.5, width = 110, height = 108,
-      shift = { 12.25 / 32, 5.25 / 32 }, draw_as_shadow = true,
-    },
-  },
+  filename = GFX .. "foundry-input-v2.png",
+  priority = "extra-high",
+  width = 89,
+  height = 96,
+  shift = { 0, -0.1 },
 }
 
 -- Signal de sortie : contrôle le bloc aval, rend le segment interne sortant.
@@ -268,6 +273,36 @@ pole.hidden_in_factoriopedia = true
 -- Au-dessus du bâtiment dans la pile de sélection, comme la réserve : sinon le
 -- footprint 40×22 capte le clic et le poteau devient impossible à câbler.
 pole.selection_priority = 100
+pole.pictures = {
+  layers = {
+    {
+      filename = GFX .. "foundry-power-terminal-sheet-v1.png",
+      priority = "extra-high",
+      width = 80,
+      height = 89,
+      direction_count = 4,
+      shift = { 0, -0.35 },
+    },
+  },
+}
+local terminal_point = {
+  shadow = {
+    copper = util.by_pixel(18, 8),
+    red = util.by_pixel(12, 12),
+    green = util.by_pixel(24, 12),
+  },
+  wire = {
+    copper = util.by_pixel(0, -34),
+    red = util.by_pixel(-10, -7),
+    green = util.by_pixel(10, -7),
+  },
+}
+pole.connection_points = {
+  table.deepcopy(terminal_point), table.deepcopy(terminal_point),
+  table.deepcopy(terminal_point), table.deepcopy(terminal_point),
+}
+pole.drawing_box_vertical_extension = 1.5
+pole.water_reflection = nil
 
 -- Enceinte : clone du mur de pierre vanilla, posé au pourtour du bâtiment.
 -- hide() le rend non-minable/non-sélectionnable ; il conserve sa collision
@@ -344,6 +379,38 @@ block_combi.draw_circuit_wires = false
 -- Bâtiment principal (identique aux deux variantes, seul le name diffère)
 -- ============================================================================
 
+local work_base_animation = {
+  type = "animation",
+  name = names.mod .. "-work-base",
+  filename = GFX .. "foundry-base-animation.png",
+  width = 1705,
+  height = 922,
+  frame_count = 24,
+  line_length = 4,
+}
+
+local work_glow_animation = {
+  type = "animation",
+  name = names.mod .. "-work-glow",
+  filename = GFX .. "foundry-glow-animation.png",
+  width = 192,
+  height = 128,
+  frame_count = 8,
+  line_length = 4,
+  blend_mode = "additive",
+}
+
+local work_spark_animation = {
+  type = "animation",
+  name = names.mod .. "-work-sparks",
+  filename = GFX .. "foundry-sparks-animation.png",
+  width = 192,
+  height = 192,
+  frame_count = 12,
+  line_length = 4,
+  blend_mode = "additive",
+}
+
 local main = {
   type = "assembling-machine",
   name = MAIN,
@@ -381,14 +448,14 @@ local main = {
                     drain = "30kW" },
   energy_usage = "450kW",
   allowed_effects = {},
-  -- Bande du BAS (carcasses) en working_visualisation du bâtiment : jamais cullée,
-  -- pas de couture gênante. Le HAUT est une ENTITÉ séparée (deco_top, plus bas) pour
-  -- piloter son ORDRE DE DESSIN (module gauche par-dessus le droit → jonction propre).
+  -- Socle statique de la fonderie ouverte : ateliers nord/sud et leurs fondations.
+  -- Le corridor ferroviaire est transparent ; rails, gare et trains restent de vraies
+  -- entités. Les portiques hauts sont dessinés séparément par control.lua.
   graphics_set = {
     working_visualisations = {
       { always_draw = true, render_layer = "lower-object",
-        animation = { filename = GFX .. "foundry-bottom.png", width = 1180,
-          height = 112, scale = 1, shift = { 0.8, 8.5 } } },
+        animation = { filename = GFX .. "foundry-base-v2.png", width = 1705,
+          height = 922, scale = 0.695, shift = { 0.5, 0 } } },
     },
     animation = {
       filename = "__core__/graphics/empty.png",
@@ -398,19 +465,8 @@ local main = {
   },
 }
 
--- Bande déco du HAUT : ENTITÉ simple-entity-with-owner à DEUX variations, posée au
--- centre du bâtiment. On la sort du working_visualisation pour piloter sa variation
--- au runtime (graphics_variation, fiable) selon le voisin de droite :
---   1 = normal   (foundry-top.png : structures jusqu'au bord ; module SEUL/dernier)
---   2 = variante (foundry-top-variant.png : bord droit fondu en sol ; module suivi
---       d'une EXTENSION → à la jonction, deux bords « fond » se rencontrent, pas de
---       structures qui se chevauchent → couture propre).
--- ANTI-CULLING : collision_box GÉANT (couvre tout le sprite) — le culling du rendu se
--- base sur la collision_box/selection_box, PAS sur la taille du sprite ; sans lui,
--- l'entité disparaît dès que son centre sort de l'écran (zoom près d'un bord).
--- collision_mask VIDE → la grande box ne bloque NI trains NI joueur. render_layer
--- "lower-object" = sous les roues. random_variation_on_create=false SINON une
--- variation aléatoire à la pose écrase la nôtre.
+-- Prototype conservé vide pour charger sans rupture les sauvegardes qui possèdent
+-- encore l'ancienne bande décorative. La migration runtime détruit ces entités.
 local deco_top = {
   type = "simple-entity-with-owner",
   name = names.deco_top,
@@ -420,25 +476,24 @@ local deco_top = {
   selection_box = { { -18.5, -11 }, { 18.5, 11 } },
   collision_mask = { layers = {} },
   pictures = {
-    { filename = GFX .. "foundry-top.png", width = 1180, height = 282,
-      scale = 1, shift = { 0.8, -4.7 }, flags = { "no-crop" } },
-    { filename = GFX .. "foundry-top-variant.png", width = 1180, height = 282,
-      scale = 1, shift = { 0.8, -4.7 }, flags = { "no-crop" } },
+    EMPTY_SPRITE,
+    EMPTY_SPRITE,
   },
 }
 hide(deco_top)
 
--- Sprite d'APERÇU de placement : image d'ensemble du bâtiment (capture réelle : sol,
--- 2 voies, bandes déco haut/bas, contour des murs). Dessiné par control.lua via
+-- Sprite d'APERÇU de placement : silhouette statique de la fonderie ouverte, avec
+-- corridor transparent pour laisser lire le terrain et le futur passage des voies.
+-- Dessiné par control.lua via
 -- rendering.draw_sprite ancré au CURSEUR (target type="cursor"), en deux exemplaires
 -- (render_mode "game" pour la vue perso + map zoomée révélée, "chart" pour la map
 -- dézoomée/brouillard) → l'aperçu suit la souris partout, visible seulement quand le
 -- joueur tient l'item de fonderie. Préfixé names.mod (pas de collision entre les 2
--- mods). foundry-preview.png = capture recadrée sur l'emprise 40×22 (scale calé côté
+-- mods). foundry-preview-v2.png = capture recadrée sur l'emprise 40×22 (scale calé côté
 -- control pour tomber pile sur l'emprise en jeu).
 local preview_sprite = {
   type = "sprite", name = names.mod .. "-preview",
-  filename = GFX .. "foundry-preview.png", width = 1280, height = 704,
+  filename = GFX .. "foundry-preview-v2.png", width = 1280, height = 704,
   scale = 1.05, flags = { "no-crop" },
 }
 
@@ -446,7 +501,7 @@ local preview_sprite = {
 -- control.lua via rendering.draw_sprite (calé en jeu, puis figé).
 local roof_sprite = {
   type = "sprite", name = names.mod .. "-roof",
-  filename = GFX .. "foundry-roof.png", width = 1022, height = 689,
+  filename = GFX .. "foundry-roof-v3.png", width = 1691, height = 930,
   scale = 1, flags = { "no-crop" },
 }
 
@@ -467,10 +522,14 @@ end
 data:extend({
   { type = "recipe-category", name = names.dummy_cat },
 
+  platform_tile,
   main, rail, rail_over, rail_ext, recycle_stop, block_signal, block_combi,
   input, signal, combinator, combinator_req, pole, wall, gate, blocker, deco_top,
   preview_sprite,
   roof_sprite,
+  work_base_animation,
+  work_glow_animation,
+  work_spark_animation,
 
   -- Vue d'ensemble : raccourci + touche perso ouvrant la fonderie de la surface.
   {

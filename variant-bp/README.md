@@ -36,8 +36,3 @@ blueprint parameters included.
 - **Clear stuck train**: one click destroys and refunds a train that cannot leave.
 - **Remote control**: a shortcut-bar button (and Ctrl+Alt+F) opens the foundry from anywhere.
 - One foundry per planet. Vanilla, Space Age and Nullius compatible.
-
-## Credits
-
-The reserve-chest sprite is the "tall steel chest" graphic from the **Wide Containers
-Assets** mod by **Lebothegizebo**, used under the MIT License. Thanks!

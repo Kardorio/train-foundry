@@ -821,6 +821,8 @@ function builder.spawn(state, template, params, fuel_item, generic)
   -- coucher tout le train dans le sens de sortie ?
   local free_orient = (not is_stc) or template.free_orientation
   local count = #template.stock
+  local head_x = HEAD_X
+  if state.exit_left and not state.exit_right then head_x = head_x - 2 end
 
   -- Orientation est/ouest d'un véhicule BP depuis son orientation Factorio (0..1) :
   -- 0.25 = est, 0.75 = ouest (voie horizontale). Défaut ouest.
@@ -849,7 +851,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
     local v = e.surface.create_entity({
       name = s.name,
       quality = quality_of(s),
-      position = { e.position.x + HEAD_X + slot * SPACING,
+      position = { e.position.x + head_x + slot * SPACING,
                    e.position.y + RAIL_Y },
       direction = dir,
       force = e.force,
