@@ -3,7 +3,7 @@
 -- installé (coexistence « 1 de chaque par surface »). Pas de coffre à blueprints.
 return {
   source      = "stc",
-  version     = "1.3.1",                   -- semver publié (mod Factorio 2.1 uniquement)
+  version     = "1.4.0",                   -- semver publié (mod Factorio 2.1 uniquement)
   mod         = "train-foundry-stc",       -- nom du mod (chemin __<mod>__/graphics)
   building    = "tfstc-foundry",
   rail        = "tfstc-rail",
@@ -16,7 +16,9 @@ return {
   pole        = "tfstc-pole",                 -- poteau : seul point d'accroche câble + alim.
   wall        = "tfstc-wall",               -- enceinte de murs du bâtiment
   gate        = "tfstc-gate",               -- portes aux sorties des voies
-  blocker     = "tfstc-blocker",            -- collision invisible bande basse (perso bloqué)
+  blocker     = "tfstc-blocker",            -- ancien prototype conservé pour les migrations
+  blocker_top = "tfstc-blocker-top",
+  blocker_bottom = "tfstc-blocker-bottom",
   recycle_stop      = "tfstc-recycle-stop", -- gare de recyclage (train-stop)
   recycle_stop_name = "[entity=tfstc-foundry] Train Recycle",  -- backer_name (schedule)
   block_signal      = "tfstc-block-signal", -- signal toujours rouge (anti-marche-arrière)

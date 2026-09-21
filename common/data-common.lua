@@ -201,11 +201,11 @@ input.selection_box = { { -0.5, -1.5 }, { 0.5, 1.5 } }
 input.tile_height = 2
 input.tile_width = 1
 input.picture = {
-  filename = GFX .. "foundry-input-v2.png",
+  filename = GFX .. "foundry-input-v7.png",
   priority = "extra-high",
-  width = 89,
-  height = 96,
-  shift = { 0, -0.1 },
+  width = 69,
+  height = 112,
+  shift = { 0, 0 },
 }
 
 -- Signal de sortie : contrôle le bloc aval, rend le segment interne sortant.
@@ -276,11 +276,11 @@ pole.selection_priority = 100
 pole.pictures = {
   layers = {
     {
-      filename = GFX .. "foundry-power-terminal-sheet-v1.png",
+      filename = GFX .. "foundry-power-terminal-v1.png",
       priority = "extra-high",
       width = 80,
       height = 89,
-      direction_count = 4,
+      direction_count = 1,
       shift = { 0, -0.35 },
     },
   },
@@ -297,10 +297,7 @@ local terminal_point = {
     green = util.by_pixel(10, -7),
   },
 }
-pole.connection_points = {
-  table.deepcopy(terminal_point), table.deepcopy(terminal_point),
-  table.deepcopy(terminal_point), table.deepcopy(terminal_point),
-}
+pole.connection_points = { table.deepcopy(terminal_point) }
 pole.drawing_box_vertical_extension = 1.5
 pole.water_reflection = nil
 
@@ -319,12 +316,6 @@ local gate = table.deepcopy(data.raw["gate"]["gate"])
 gate.name = GATE
 hide(gate)
 
--- LIGNE de mur invisible : simple-entity-with-owner sans sprite, collision FINE
--- (une ligne horizontale pleine largeur) qui arrête le personnage (is_object, avec
--- quoi le perso collisionne). Posée au runtime en DEUX exemplaires, aux frontières
--- du pavé (Y=0 en haut, Y=6 en bas) → confine le perso à la bande pavée centrale.
--- collision_box CENTRÉE sur (0,0) (contrainte moteur). Le bâtiment n'ayant PLUS
--- is_object, ces lignes ne gênent ni l'accolage ni la construction du bâtiment.
 local blocker = {
   type = "simple-entity-with-owner",
   name = names.blocker,
@@ -333,11 +324,38 @@ local blocker = {
   hidden = true,
   hidden_in_factoriopedia = true,
   selectable_in_game = false,
-  collision_box = { { -18.5, -0.15 }, { 18.5, 0.15 } },
-  selection_box = { { -18.5, -0.15 }, { 18.5, 0.15 } },
-  collision_mask = { layers = { is_object = true } },
+  collision_box = { { -0.49, -0.49 }, { 0.49, 0.49 } },
+  selection_box = { { -0.49, -0.49 }, { 0.49, 0.49 } },
+  collision_mask = {
+    layers = { is_object = true },
+    not_colliding_with_itself = true,
+  },
   picture = { filename = "__core__/graphics/empty.png", width = 1, height = 1 },
 }
+
+local function rectangular_blocker(name, collision_box)
+  return {
+    type = "simple-entity-with-owner",
+    name = name,
+    flags = { "not-on-map", "not-blueprintable", "not-deconstructable",
+              "not-upgradable", "no-copy-paste", "hide-alt-info", "player-creation" },
+    hidden = true,
+    hidden_in_factoriopedia = true,
+    selectable_in_game = false,
+    collision_box = collision_box,
+    selection_box = collision_box,
+    collision_mask = {
+      layers = { is_object = true },
+      not_colliding_with_itself = true,
+    },
+    picture = { filename = "__core__/graphics/empty.png", width = 1, height = 1 },
+  }
+end
+
+local blocker_top = rectangular_blocker(names.blocker_top,
+  { { -16.49, -3.49 }, { 16.49, 3.49 } })
+local blocker_bottom = rectangular_blocker(names.blocker_bottom,
+  { { -16.49, -1.49 }, { 16.49, 1.49 } })
 
 -- Gare de RECYCLAGE : clone du train-stop vanilla, posé au bout de la voie de
 -- recyclage. NON hide() complet — une gare `hidden` n'apparaît PAS dans la liste
@@ -382,11 +400,19 @@ block_combi.draw_circuit_wires = false
 local work_base_animation = {
   type = "animation",
   name = names.mod .. "-work-base",
-  filename = GFX .. "foundry-base-animation.png",
-  width = 1705,
-  height = 922,
+  filename = GFX .. "foundry-base-animation-overlay-v1.png",
+  width = 755,
+  height = 235,
   frame_count = 24,
   line_length = 4,
+}
+
+local idle_base_sprite = {
+  type = "sprite",
+  name = names.mod .. "-idle-base",
+  filename = GFX .. "foundry-base-idle-overlay-v1.png",
+  width = 755,
+  height = 235,
 }
 
 local work_glow_animation = {
@@ -436,8 +462,8 @@ local main = {
   build_grid_size = 2,
   -- collision_mask SANS is_object : le personnage peut MARCHER dans l'enceinte (il
   -- collisionne avec is_object, pas avec meltable). Il est confiné à la bande pavée
-  -- centrale par deux LIGNES de mur invisibles (tf-blocker) posées à Y -1 et Y 6 (voir
-  -- composite) ; les vrais murs ferment le pourtour. meltable réserve un minimum.
+  -- centrale par deux contours invisibles assemblés avec tf-blocker (voir
+  -- composite) ; les vrais murs ferment aussi le pourtour. meltable réserve un minimum.
   -- PAS de water_tile : la pose sur l'eau est AUTORISÉE, et le mod remblaie lui-même
   -- toute l'emprise à on_built (bâtiment « amphibie ») — sinon water_tile bloquerait
   -- la pose avant qu'on puisse combler.
@@ -454,7 +480,7 @@ local main = {
   graphics_set = {
     working_visualisations = {
       { always_draw = true, render_layer = "lower-object",
-        animation = { filename = GFX .. "foundry-base-v2.png", width = 1705,
+        animation = { filename = GFX .. "foundry-base-common-v1.png", width = 1705,
           height = 922, scale = 0.695, shift = { 0.5, 0 } } },
     },
     animation = {
@@ -524,9 +550,11 @@ data:extend({
 
   platform_tile,
   main, rail, rail_over, rail_ext, recycle_stop, block_signal, block_combi,
-  input, signal, combinator, combinator_req, pole, wall, gate, blocker, deco_top,
+  input, signal, combinator, combinator_req, pole, wall, gate,
+  blocker, blocker_top, blocker_bottom, deco_top,
   preview_sprite,
   roof_sprite,
+  idle_base_sprite,
   work_base_animation,
   work_glow_animation,
   work_spark_animation,

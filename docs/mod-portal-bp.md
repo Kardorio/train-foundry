@@ -16,6 +16,9 @@ train blueprint into it, queue it, and the foundry assembles the whole train and
 sends it off onto your network on its own — with the right composition,
 orientation, colors, fuel, schedule, train group and blueprint parameters.
 
+During assembly, the industrial hall comes alive: robotic arms move while work
+lights and welding sparks follow the train's construction.
+
 ![The foundry](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/building.png)
 
 ### How it works
@@ -54,13 +57,15 @@ foundry the east exit follows the far end of the chain automatically.
 
 ### Longer trains
 
-Need trains longer than five vehicles? Place another Train Foundry right against
-the east side of an existing one and it chains on as an **extension** — the
-internal track and capacity extend across the whole hall. Each module adds room
-for five more vehicles (5 alone, 10 with one extension, 15 with two, and so on).
-Extensions have no chests or signal of their own: the whole chain is driven from
-one window, and the stock stays on the west end while the exits work across the
-whole hall.
+Need trains longer than five vehicles? Use **Add extension** in the foundry
+window. It places an aligned construction ghost on the east side after checking
+that the area is suitable. The internal track and capacity extend across the
+whole hall; each module adds room for five more vehicles (5 alone, 10 with one
+extension, 15 with two, and so on). Extensions have no chests or signal of their
+own: the whole chain is driven from one window, and the stock stays on the west
+end while the exits work across the whole hall.
+
+![Add an extension from the foundry window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/add-extension.png)
 
 ![Chained foundries for longer trains](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/extensions.png)
 
@@ -110,8 +115,3 @@ quality.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry's
   window from anywhere — no need to walk to it. One foundry (chain) per planet.
 - **Compatible** with vanilla, Space Age and Nullius.
-
-### Credits
-
-The reserve-chest sprite is the "tall steel chest" graphic from the **Wide
-Containers Assets** mod by **Lebothegizebo**, used under the MIT License. Thanks!

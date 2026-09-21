@@ -10,6 +10,9 @@ train blueprint, queue it, and the foundry assembles the whole train and sends i
 off onto your network on its own — composition, orientation, colors, fuel,
 schedule, train group and blueprint parameters included.
 
+The industrial hall comes alive during assembly: its robotic arms move while
+work lights and welding sparks follow the train's construction.
+
 ![The interface](docs/interface.png)
 
 ## How it works
@@ -34,9 +37,11 @@ schedule, train group and blueprint parameters included.
 
 ## Longer trains
 
-Place another Train Foundry against the east side of an existing one to chain it
-as an **extension**: the track and capacity extend across the whole hall (+5
+Use **Add extension** in the foundry window to place an aligned construction
+ghost on its east side: the track and capacity extend across the whole hall (+5
 vehicles per module). The chain is driven from a single window.
+
+![Add an extension from the foundry window](docs/add-extension.png)
 
 ![Chained foundries](docs/extensions.png)
 

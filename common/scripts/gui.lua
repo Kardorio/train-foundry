@@ -1066,6 +1066,13 @@ function gui.open(player, state)
   drag.style.horizontally_stretchable = true
   drag.style.height = 24
   drag.drag_target = frame
+  titlebar.add({
+    type = "sprite-button",
+    name = "tf-add-extension",
+    style = "frame_action_button",
+    sprite = "utility/add",
+    tooltip = { "tf-gui.add-extension-tip" },
+  })
   -- Bouton d'ouverture de la fenêtre déportée "Configuration" (circuit + sorties).
   titlebar.add({
     type = "sprite-button",
