@@ -4,6 +4,9 @@ A big building (40×22) that assembles **complete trains from a blueprint** and 
 your rail network on their own — locomotives, wagons, colours, fuel, schedule, train group and
 blueprint parameters included.
 
+During assembly, the foundry's robotic arms, work lights and welding sparks animate around the
+train under construction.
+
 > Looking for the Smart Train Combinator version (build trains from STC models, no blueprint)? See
 > the companion mod **Train Foundry for Smart Train Combinator**. Both can be installed together.
 
@@ -30,14 +33,10 @@ blueprint parameters included.
   one checkbox per fuel and quality.
 - **Exit sides**: left (west) by default; a right (east) exit can be enabled in the window. The train
   picks the side its schedule reaches.
-- **Longer trains**: chain extensions against the east side — each adds room for 5 more vehicles.
+- **Longer trains**: use **Add extension** in the foundry window; each aligned module adds room for
+  5 more vehicles.
 - **Circuit connector**: an electric pole (power and/or circuit). Stock contents and missing
   components are two independent outputs, each with its own wire choice (red, green, or both).
 - **Clear stuck train**: one click destroys and refunds a train that cannot leave.
 - **Remote control**: a shortcut-bar button (and Ctrl+Alt+F) opens the foundry from anywhere.
 - One foundry per planet. Vanilla, Space Age and Nullius compatible.
-
-## Credits
-
-The reserve-chest sprite is the "tall steel chest" graphic from the **Wide Containers
-Assets** mod by **Lebothegizebo**, used under the MIT License. Thanks!

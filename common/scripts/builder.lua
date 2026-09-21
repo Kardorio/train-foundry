@@ -606,20 +606,26 @@ function builder.refund(state, need, fuel_item)
   end
 end
 
--- Largeur d'un module (doit coïncider avec composite.MODULE_WIDTH).
-local MODULE_WIDTH = 40
+local function east_edge(state, offset)
+  for i = #(state.extensions or {}), 1, -1 do
+    local extension = storage.foundries[state.extensions[i]]
+    if extension and extension.entity and extension.entity.valid then
+      return extension.entity.position.x + offset
+    end
+  end
+  return state.entity.position.x + offset
+end
 
 -- La voie interne est-elle libre de tout véhicule ? La zone s'étend vers l'est
 -- d'un module par extension accolée (voie continue de toute la chaîne).
 function builder.track_free(state)
   local e = state.entity
   if not (e and e.valid) then return false end
-  local n_ext = (state.extensions and #state.extensions) or 0
   -- Borne est étendue de +18 à +21 : la sortie est prolonge la voie au-delà du
   -- bord (jusqu'à +21), un véhicule y stationnant doit être détecté.
   local area = {
     { e.position.x - 18, e.position.y + RAIL_Y - 1.5 },
-    { e.position.x + 21 + n_ext * MODULE_WIDTH, e.position.y + RAIL_Y + 1.5 },
+    { east_edge(state, 21), e.position.y + RAIL_Y + 1.5 },
   }
   return #e.surface.find_entities_filtered({
     type = STOCK_TYPES, area = area }) == 0
@@ -628,10 +634,9 @@ end
 -- Zone de la voie interne (même calcul que track_free) — factorisé pour clear_track.
 local function internal_track_area(state)
   local e = state.entity
-  local n_ext = (state.extensions and #state.extensions) or 0
   return {
     { e.position.x - 18, e.position.y + RAIL_Y - 1.5 },
-    { e.position.x + 21 + n_ext * MODULE_WIDTH, e.position.y + RAIL_Y + 1.5 },
+    { east_edge(state, 21), e.position.y + RAIL_Y + 1.5 },
   }
 end
 
@@ -681,10 +686,9 @@ end
 -- l'y garde piégé → immobile = à recycler.
 local function recycle_area(state)
   local e = state.entity
-  local n_ext = (state.extensions and #state.extensions) or 0
   return {
     { e.position.x - 17, e.position.y + DECO_RAIL_Y - 1.5 },
-    { e.position.x + 17 + n_ext * MODULE_WIDTH, e.position.y + DECO_RAIL_Y + 1.5 },
+    { east_edge(state, 17), e.position.y + DECO_RAIL_Y + 1.5 },
   }
 end
 
@@ -821,6 +825,8 @@ function builder.spawn(state, template, params, fuel_item, generic)
   -- coucher tout le train dans le sens de sortie ?
   local free_orient = (not is_stc) or template.free_orientation
   local count = #template.stock
+  local head_x = HEAD_X
+  if state.exit_left and not state.exit_right then head_x = head_x - 2 end
 
   -- Orientation est/ouest d'un véhicule BP depuis son orientation Factorio (0..1) :
   -- 0.25 = est, 0.75 = ouest (voie horizontale). Défaut ouest.
@@ -849,7 +855,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
     local v = e.surface.create_entity({
       name = s.name,
       quality = quality_of(s),
-      position = { e.position.x + HEAD_X + slot * SPACING,
+      position = { e.position.x + head_x + slot * SPACING,
                    e.position.y + RAIL_Y },
       direction = dir,
       force = e.force,

@@ -3,6 +3,9 @@
 A big building (40×22) that assembles **complete trains from Smart Train Combinator models** and
 sends them off onto your rail network on their own — no blueprint needed.
 
+During assembly, the foundry's robotic arms, work lights and welding sparks animate around the
+train under construction.
+
 > **Requires [Smart Train Combinator](https://mods.factorio.com/mod/smart-train-combinator).**
 > Prefer defining trains with a blueprint instead? See the companion mod **Train Foundry**. Both can
 > be installed together (one building of each per surface).
@@ -52,12 +55,7 @@ free.
   column. Among the ticked ones it takes the highest fuel value, then the highest quality.
 - **Circuit connector**: an electric pole (power and/or circuit). Stock contents and missing
   components are two independent outputs, each with its own wire choice (red, green, or both).
-- **Exit sides** (left/right), **chainable extensions** for longer trains, **clear stuck train**
-  button, and Factoriopedia on component/fuel slots.
+- **Exit sides** (left/right), **chainable extensions** added from the foundry window for longer
+  trains, **clear stuck train** button, and Factoriopedia on component/fuel slots.
 - **Remote control**: a shortcut-bar button (and Ctrl+Alt+F) opens the foundry from anywhere.
 - One foundry per planet. Vanilla, Space Age and Nullius compatible.
-
-## Credits
-
-The reserve-chest sprite is the "tall steel chest" graphic from the **Wide Containers
-Assets** mod by **Lebothegizebo**, used under the MIT License. Thanks!

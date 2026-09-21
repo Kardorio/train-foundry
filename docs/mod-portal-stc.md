@@ -14,6 +14,9 @@ this foundry closes the loop: it reads the train shapes your combinators already
 define, builds those exact trains for you, and sends them out **pre-wired to your
 STC stops** — no blueprint, and no hand-editing a single schedule.
 
+During assembly, the industrial hall comes alive: robotic arms move while work
+lights and welding sparks follow the train's construction.
+
 > **Requires [Smart Train Combinator](https://mods.factorio.com/mod/smart-train-combinator).**
 > Prefer defining trains with a blueprint? Get the companion mod
 > **[Train Foundry](https://mods.factorio.com/mod/train-foundry)** instead — you can run both,
@@ -122,8 +125,11 @@ Left untouched, every fuel is accepted in normal quality.
 - **Exit sides.** Trains leave to the left (west) by default; enable a right
   (east) exit in the **Configuration** window. The train takes whichever open
   side its schedule leads to.
-- **Longer trains.** Chain extensions against the east side — each module adds
-  room for five more vehicles.
+- **Longer trains.** Use **Add extension** in the foundry window. It places an
+  aligned construction ghost on the east side after checking that the area is
+  suitable; each module adds room for five more vehicles.
+
+![Add an extension from the foundry window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/add-extension.png)
 
 ![The Configuration window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-configuration.png)
 
@@ -143,8 +149,3 @@ Left untouched, every fuel is accepted in normal quality.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry
   from anywhere. One foundry (chain) per planet.
 - **Compatible** with vanilla, Space Age and Nullius.
-
-### Credits
-
-The reserve-chest sprite is the "tall steel chest" graphic from the **Wide
-Containers Assets** mod by **Lebothegizebo**, used under the MIT License. Thanks!

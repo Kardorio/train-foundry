@@ -33,10 +33,16 @@ local PREVIEW_SPRITE = names.mod .. "-preview"
 -- Déco portique/grue dessinée au-dessus des voies (rendering.draw_sprite). Valeurs
 -- de position/échelle calées en jeu.
 local ROOF_SPRITE = names.mod .. "-roof"
-local ROOF_SHIFT_X = 1   -- calé en jeu pour centrer le portique sur les voies
-local ROOF_SHIFT_Y = 5
-local ROOF_SCALE = 1
+local ROOF_SHIFT_X = 0.5
+local ROOF_SHIFT_Y = 0
+local ROOF_SCALE = 0.695
 local ROOF_LAYER = "higher-object-above"
+
+local WORK_BASE_ANIMATION = names.mod .. "-work-base"
+local WORK_GLOW_ANIMATION = names.mod .. "-work-glow"
+local WORK_SPARK_ANIMATION = names.mod .. "-work-sparks"
+local IDLE_BASE_SPRITE = names.mod .. "-idle-base"
+local BASE_OVERLAY_OFFSET = { 0.78234375, -3.377265625 }
 
 -- Le carburant est-il géré en mode GÉNÉRIQUE (meilleur carburant débloqué dispo +
 -- interruption Refuel) pour cette fonderie ? Toujours en variante STC (pas de
@@ -73,6 +79,10 @@ local function ensure_storage()
   storage.foundries = storage.foundries or {}
   -- registration_number -> { renders } aperçus dessinés sur les GHOSTS posés.
   storage.ghost_previews = storage.ghost_previews or {}
+  -- Position -> demande d'extension créée depuis l'interface. Le tag du ghost
+  -- reste la source d'autorité lors de sa construction ; cette table sert à
+  -- empêcher les doublons et à nettoyer une demande annulée.
+  storage.pending_extensions = storage.pending_extensions or {}
   -- player_index -> { cursor, chart } rendus de l'aperçu de placement. Recréé au besoin
   -- (perdu au rechargement). Voir le bloc APERÇU.
   storage.preview_ids = storage.preview_ids or {}
@@ -133,9 +143,11 @@ end
 -- retrait d'extension. Centralise le nettoyage pour éviter rails orphelins.
 local function refresh_chain_track(master)
   if not master then return end
+  local states = chain_states(master)
+  for _, state in ipairs(states) do composite.ensure_internal_rails(state) end
+  composite.rebuild_chain_walls(master, states)
   composite.rebuild_chain_track(master, chain_entities(master))
-  composite.rebuild_chain_walls(master, chain_states(master))
-  composite.rebuild_deco_track(master, chain_states(master))  -- voie recyclage si deco
+  composite.rebuild_deco_track(master, states)  -- voie recyclage si deco
 end
 
 -- Migration : remplissage des champs manquants des vieux states et nettoyage
@@ -195,6 +207,16 @@ local function migrate_all()
       end
       st.chain_sprites = nil
     end
+    if st.platform_render and st.platform_render.valid then
+      st.platform_render.destroy()
+    end
+    st.platform_render = nil
+    if st.idle_render and st.idle_render.valid then st.idle_render.destroy() end
+    st.idle_render = nil
+    for _, render in ipairs(st.work_renders or {}) do
+      if render and render.valid then render.destroy() end
+    end
+    st.work_renders = nil
     if not (st.entity and st.entity.valid) then
       composite.destroy(st)
       storage.foundries[un] = nil
@@ -207,11 +229,7 @@ local function migrate_all()
       st.walls_static = st.walls_static or {}
       st.side_west = st.side_west or {}
       st.side_east = st.side_east or {}
-      -- Sol pavé (ajouté après) : posé si absent.
-      if not (st.floor_saved and #st.floor_saved > 0) then
-        st.floor_saved = {}
-        composite.lay_floor(st)
-      end
+      composite.ensure_internal_rails(st)
     else
       -- MAÎTRE : champs de production + enfants.
       st.templates = st.templates or {}
@@ -227,6 +245,7 @@ local function migrate_all()
       -- Champ st.source_mode supprimé (chaque variante est mono-source) ; on le
       -- purge des vieilles saves. st.stc_fuel reste inerte, laissé tel quel.
       st.source_mode = nil
+      composite.ensure_internal_rails(st)
       -- Répare les signaux détachés (mauvaise direction dans les vieilles
       -- versions : ils clignotaient sans gouverner le bloc).
       composite.repair_signal(st)
@@ -241,11 +260,6 @@ local function migrate_all()
       -- et il lira le stock (le rôle que garde cette entité).
       composite.ensure_circuit(st)
       if names.has_bpchest then composite.ensure_bpchest(st) end
-      -- Sol pavé (ajouté après) : posé si absent.
-      if not (st.floor_saved and #st.floor_saved > 0) then
-        st.floor_saved = {}
-        composite.lay_floor(st)
-      end
       -- Enceinte de murs (statique + colonnes). La 2e voie (recyclage) est gérée
       -- par refresh_chain_track (rebuild_deco_track) selon st.deco, appelé plus bas.
       st.rails_deco = st.rails_deco or {}
@@ -263,6 +277,17 @@ local function migrate_all()
       -- tuile entre modules sur les vieilles saves) et ré-ancre la sortie est (si
       -- active) sur le bon bord. Remplace l'ancienne réparation séparée du signal.
       refresh_chain_track(st)
+    end
+  end
+
+  -- Les zones se chevauchent entre modules : le master doit enregistrer le sol
+  -- d'origine avant que les extensions ne posent leurs propres tuiles.
+  for _, role in ipairs({ "master", "extension" }) do
+    for _, st in pairs(storage.foundries) do
+      if st.role == role and st.entity and st.entity.valid then
+        st.floor_saved = st.floor_saved or {}
+        composite.lay_floor(st)
+      end
     end
   end
 
@@ -302,7 +327,8 @@ local function migrate_all()
                         names.signal, names.combinator, names.combinator_req,
                         names.pole, names.wall, names.gate,
                         names.recycle_stop, names.block_signal, names.block_combi,
-                        names.deco_top, names.blocker }
+                        names.deco_top, names.blocker,
+                        names.blocker_top, names.blocker_bottom }
   if names.has_bpchest then child_names[#child_names + 1] = names.bpchest end
   for _, surface in pairs(game.surfaces) do
     for _, ent in pairs(surface.find_entities_filtered({
@@ -450,12 +476,115 @@ local function refresh_all_roofs()
   for _, st in pairs(storage.foundries) do ensure_roof(st) end
 end
 
+local function destroy_idle_render(st)
+  if st.idle_render and st.idle_render.valid then st.idle_render.destroy() end
+  st.idle_render = nil
+end
+
+local function ensure_idle_render(st)
+  if not (st and st.entity and st.entity.valid) then return end
+  if st.idle_render and st.idle_render.valid then return end
+  st.idle_render = rendering.draw_sprite({
+    sprite = IDLE_BASE_SPRITE,
+    target = { entity = st.entity, offset = BASE_OVERLAY_OFFSET },
+    surface = st.entity.surface,
+    render_layer = "lower-object",
+    x_scale = 0.695,
+    y_scale = 0.695,
+  })
+end
+
+local function destroy_work_renders(st)
+  for _, render in ipairs(st.work_renders or {}) do
+    if render and render.valid then render.destroy() end
+  end
+  st.work_renders = nil
+end
+
+local function ensure_work_renders(st)
+  if not (st and st.entity and st.entity.valid) then return end
+  local valid = st.work_renders and #st.work_renders == 10
+  if valid then
+    for _, render in ipairs(st.work_renders) do
+      if not (render and render.valid) then valid = false break end
+    end
+  end
+  if valid then return end
+  destroy_work_renders(st)
+
+  local entity = st.entity
+  local function animation(name, offset, scale, speed, layer, frame_offset)
+    return rendering.draw_animation({
+      animation = name,
+      target = { entity = entity, offset = offset },
+      surface = entity.surface,
+      render_layer = layer,
+      x_scale = scale,
+      y_scale = scale,
+      animation_speed = speed,
+      animation_offset = frame_offset or 0,
+    })
+  end
+
+  local function work_light(offset, scale, intensity)
+    return rendering.draw_light({
+      sprite = "utility/light_medium",
+      target = { entity = entity, offset = offset },
+      surface = entity.surface,
+      color = { r = 1, g = 0.32, b = 0.04, a = 1 },
+      scale = scale,
+      intensity = intensity,
+      minimum_darkness = 0,
+    })
+  end
+
+  st.work_renders = {
+    animation(WORK_BASE_ANIMATION, BASE_OVERLAY_OFFSET, 0.695, 0.15, "lower-object"),
+    animation(WORK_GLOW_ANIMATION, { -7.6, -2.7 }, 0.95, 0.16,
+      "higher-object-under"),
+    animation(WORK_GLOW_ANIMATION, { 0.45, -2.6 }, 0.95, 0.19,
+      "higher-object-under", 2),
+    animation(WORK_GLOW_ANIMATION, { 8.15, -2.7 }, 0.95, 0.14,
+      "higher-object-under", 5),
+    animation(WORK_SPARK_ANIMATION, { -7.6, -2.7 }, 0.45, 0.11,
+      "higher-object-under"),
+    animation(WORK_SPARK_ANIMATION, { 0.45, -2.6 }, 0.45, 0.14,
+      "higher-object-under", 4),
+    animation(WORK_SPARK_ANIMATION, { 8.15, -2.7 }, 0.45, 0.095,
+      "higher-object-under", 8),
+    work_light({ -7.6, -2.7 }, 3.2, 0.72),
+    work_light({ 0.45, -2.6 }, 3.6, 0.82),
+    work_light({ 8.15, -2.7 }, 3.2, 0.72),
+  }
+end
+
+local function refresh_chain_work_renders(master)
+  local active = master.work and master.work.phase == "building"
+  for _, st in ipairs(chain_states(master)) do
+    if active then
+      destroy_idle_render(st)
+      ensure_work_renders(st)
+    else
+      destroy_work_renders(st)
+      ensure_idle_render(st)
+    end
+  end
+end
+
+local function refresh_all_work_renders()
+  for _, st in pairs(storage.foundries) do
+    if st.role ~= "extension" and st.entity and st.entity.valid then
+      refresh_chain_work_renders(st)
+    end
+  end
+end
+
 -- APERÇU sur un GHOST posé (Alt+clic / drones en attente) : le ghost natif n'affiche
 -- que le graphics_set du prototype (la bande bas). On dessine l'image d'ensemble à SA
 -- position (fixe), en "game" + "chart", effacée quand le ghost disparaît (construit
 -- ou annulé) via register_on_object_destroyed.
 -- storage.ghost_previews[registration_number] = { renders = { id, id }, unit = un }
-local function draw_ghost_preview(ghost)
+local function draw_ghost_preview(ghost, pending_key)
   if not (ghost and ghost.valid) then return end
   storage.ghost_previews = storage.ghost_previews or {}
   local pos = ghost.position
@@ -470,18 +599,24 @@ local function draw_ghost_preview(ghost)
     })
   end
   local reg = script.register_on_object_destroyed(ghost)
-  storage.ghost_previews[reg] = { renders = { at("game"), at("chart") } }
+  storage.ghost_previews[reg] = {
+    renders = { at("game"), at("chart") },
+    pending_key = pending_key,
+  }
+  return reg
 end
 
 script.on_init(function()
   ensure_storage()
   refresh_all_previews()
   refresh_all_roofs()
+  refresh_all_work_renders()
 end)
 script.on_configuration_changed(function()
   migrate_all()
   refresh_all_previews()
   refresh_all_roofs()
+  refresh_all_work_renders()
 end)
 script.on_event(defines.events.on_player_created, function(event)
   refresh_preview(game.get_player(event.player_index))
@@ -505,6 +640,13 @@ script.on_event(defines.events.on_object_destroyed, function(event)
   for _, id in ipairs(gp.renders) do
     if id and id.valid then id.destroy() end
   end
+  if gp.pending_key then
+    local pending = storage.pending_extensions and
+      storage.pending_extensions[gp.pending_key]
+    if pending and pending.registration_number == event.registration_number then
+      storage.pending_extensions[gp.pending_key] = nil
+    end
+  end
   storage.ghost_previews[event.registration_number] = nil
 end)
 
@@ -519,7 +661,7 @@ local function cancel_build(event, e, msg_key)
   local player = event.player_index and game.get_player(event.player_index)
   if player then
     player.create_local_flying_text({
-      text = { "tf-msg." .. (msg_key or "need-rails") },
+      text = { "tf-msg." .. msg_key },
       position = e.position,
     })
     player.mine_entity(e, true)
@@ -559,6 +701,221 @@ local function refresh_chain_minable(master)
   end
 end
 
+local EXTENSION_OFFSET = 36
+local EXTENSION_HALF_WIDTH = 20
+local EXTENSION_HALF_HEIGHT = 11
+local ASSEMBLY_RAIL_Y = 5
+local RECYCLE_RAIL_Y = 1
+
+local rail_types = {
+  ["straight-rail"] = true,
+  ["legacy-straight-rail"] = true,
+  ["curved-rail-a"] = true,
+  ["curved-rail-b"] = true,
+  ["legacy-curved-rail"] = true,
+  ["half-diagonal-rail"] = true,
+  ["elevated-straight-rail"] = true,
+  ["rail-ramp"] = true,
+}
+
+local transient_types = {
+  ["character"] = true,
+  ["combat-robot"] = true,
+  ["construction-robot"] = true,
+  ["corpse"] = true,
+  ["explosion"] = true,
+  ["fire"] = true,
+  ["flying-text"] = true,
+  ["highlight-box"] = true,
+  ["item-entity"] = true,
+  ["item-request-proxy"] = true,
+  ["logistic-robot"] = true,
+  ["particle-source"] = true,
+  ["projectile"] = true,
+  ["resource"] = true,
+  ["smoke-with-trigger"] = true,
+  ["stream"] = true,
+  ["tile-ghost"] = true,
+}
+
+local managed_extension_entities = {
+  [MAIN] = true,
+  [names.rail] = true,
+  [names.rail_over] = true,
+  [names.rail_ext] = true,
+  [names.signal] = true,
+  [names.gate] = true,
+  [names.recycle_stop] = true,
+  [names.block_signal] = true,
+  [names.block_combi] = true,
+  [names.blocker] = true,
+  [names.blocker_top] = true,
+  [names.blocker_bottom] = true,
+}
+
+local function extension_key(surface, position)
+  return string.format("%d:%.1f:%.1f", surface.index, position.x, position.y)
+end
+
+local function clear_pending_extensions(master_un)
+  for key, pending in pairs(storage.pending_extensions or {}) do
+    if pending.master == master_un then
+      storage.pending_extensions[key] = nil
+      if pending.ghost and pending.ghost.valid then pending.ghost.destroy() end
+    end
+  end
+end
+
+local function master_on_surface(surface)
+  for _, st in pairs(storage.foundries) do
+    if st.role == "master" and st.entity and st.entity.valid
+      and st.entity.surface == surface then
+      return st
+    end
+  end
+  return nil
+end
+
+local function expected_extension_position(master)
+  local anchor = east_end_entity(master)
+  if not (anchor and anchor.valid) then return nil end
+  return { x = anchor.position.x + EXTENSION_OFFSET, y = anchor.position.y }
+end
+
+local function same_position(a, b)
+  return a and b and math.abs(a.x - b.x) < 0.1 and math.abs(a.y - b.y) < 0.1
+end
+
+local function aligned_straight_rail(entity, target)
+  if entity.type ~= "straight-rail" and entity.type ~= "legacy-straight-rail" then
+    return false
+  end
+  if entity.direction % 8 ~= defines.direction.east % 8 then return false end
+  local y = entity.position.y
+  return math.abs(y - (target.y + ASSEMBLY_RAIL_Y)) < 0.6
+    or math.abs(y - (target.y + RECYCLE_RAIL_Y)) < 0.6
+end
+
+local function aligned_rail_signal(entity, target)
+  if entity.type ~= "rail-signal" and entity.type ~= "rail-chain-signal" then
+    return false
+  end
+  local y = entity.position.y
+  return math.abs(y - (target.y + ASSEMBLY_RAIL_Y)) < 2.1
+    or math.abs(y - (target.y + RECYCLE_RAIL_Y)) < 2.1
+end
+
+local function is_rock(entity)
+  return entity.type == "simple-entity"
+    and entity.prototype.count_as_rock_for_filtered_deconstruction
+end
+
+local function extension_obstacles(master, target)
+  local removable = {}
+  local area = {
+    { target.x - EXTENSION_HALF_WIDTH, target.y - EXTENSION_HALF_HEIGHT },
+    { target.x + EXTENSION_HALF_WIDTH, target.y + EXTENSION_HALF_HEIGHT },
+  }
+  for _, entity in ipairs(master.entity.surface.find_entities_filtered({ area = area })) do
+    if entity.valid and not managed_extension_entities[entity.name]
+      and not transient_types[entity.type] then
+      if entity.type == "tree" or is_rock(entity) then
+        removable[#removable + 1] = entity
+      elseif rail_types[entity.type] then
+        if aligned_straight_rail(entity, target) then
+          -- Une voie droite déjà alignée devient directement la voie interne de
+          -- l'extension : lay_rails la réutilise, inutile de la déconstruire.
+        else
+          return nil, entity
+        end
+      elseif aligned_rail_signal(entity, target) then
+        removable[#removable + 1] = entity
+      else
+        return nil, entity
+      end
+    end
+  end
+  return removable, nil
+end
+
+local function show_extension_blocker(player, blocker)
+  player.print({ "tf-msg.extension-blocked", blocker.localised_name })
+  player.add_custom_alert(blocker, { type = "item", name = MAIN },
+    { "tf-msg.extension-blocked", blocker.localised_name }, true)
+end
+
+local function request_extension(player, master)
+  local target = expected_extension_position(master)
+  if not target then return end
+  local key = extension_key(master.entity.surface, target)
+  local pending = storage.pending_extensions[key]
+  if pending and pending.ghost and pending.ghost.valid then
+    player.print({ "tf-msg.extension-pending" })
+    return
+  end
+  storage.pending_extensions[key] = nil
+
+  local removable, blocker = extension_obstacles(master, target)
+  if blocker then
+    show_extension_blocker(player, blocker)
+    return
+  end
+
+  local marked = {}
+  for _, entity in ipairs(removable) do
+    if entity.valid then
+      if entity.order_deconstruction(master.entity.force, player and player.index) then
+        marked[#marked + 1] = entity
+      else
+        for _, previous in ipairs(marked) do
+          if previous.valid then
+            previous.cancel_deconstruction(master.entity.force, player and player.index)
+          end
+        end
+        show_extension_blocker(player, entity)
+        return
+      end
+    end
+  end
+
+  local ghost = master.entity.surface.create_entity({
+    name = "entity-ghost",
+    inner_name = MAIN,
+    position = target,
+    direction = defines.direction.north,
+    force = master.entity.force,
+    tags = { tf_extension_master = master.entity.unit_number },
+  })
+  if not ghost then
+    for _, entity in ipairs(marked) do
+      if entity.valid then
+        entity.cancel_deconstruction(master.entity.force, player and player.index)
+      end
+    end
+    player.print({ "tf-msg.extension-no-room" })
+    return
+  end
+
+  local registration_number = draw_ghost_preview(ghost, key)
+  storage.pending_extensions[key] = {
+    ghost = ghost,
+    master = master.entity.unit_number,
+    registration_number = registration_number,
+  }
+  local pos = string.format("[gps=%.0f,%.0f,%s]", target.x, target.y,
+    master.entity.surface.name)
+  player.print({ "tf-msg.extension-created", pos })
+  player.add_custom_alert(ghost, { type = "item", name = MAIN },
+    { "tf-msg.extension-created", pos }, true)
+end
+
+local function authorized_extension(event, entity, master)
+  local tags = event.tags
+  local tagged_master = tags and tags.tf_extension_master
+  if tagged_master ~= master.entity.unit_number then return false end
+  return same_position(entity.position, expected_extension_position(master))
+end
+
 local function on_built(event)
   ensure_storage()
   local e = event.entity or event.created_entity
@@ -567,10 +924,32 @@ local function on_built(event)
   -- position (le ghost natif ne montre que la bande bas). Effacé quand le ghost
   -- devient réel ou est annulé (on_object_destroyed).
   if e.type == "entity-ghost" and e.ghost_name == MAIN then
+    local master = master_on_surface(e.surface)
+    if master then
+      local tags = e.tags
+      local allowed = tags and tags.tf_extension_master == master.entity.unit_number
+        and same_position(e.position, expected_extension_position(master))
+      if not allowed then
+        local player = event.player_index and game.get_player(event.player_index)
+        if player then player.print({ "tf-msg.extension-from-gui" }) end
+        e.destroy()
+        return
+      end
+    end
     draw_ghost_preview(e)
     return
   end
   if e.name ~= MAIN then return end
+
+  -- Une fois le maître posé, seul un fantôme créé par le bouton de son interface
+  -- peut devenir une extension. La position attendue est recalculée au dernier
+  -- moment : un vieux fantôme ne peut pas créer un trou dans une chaîne qui aurait
+  -- changé entre-temps.
+  local master = master_on_surface(e.surface)
+  if master and not authorized_extension(event, e, master) then
+    cancel_build(event, e, "extension-from-gui")
+    return
+  end
 
   -- REMBLAI AUTOMATIQUE de l'emprise : le shift+clic ne remblaie que sous la
   -- collision_box (réduite), pas sous toute l'emprise → il resterait de l'eau aux
@@ -592,18 +971,12 @@ local function on_built(event)
     end
   end
 
-  -- Un module accolé à l'OUEST d'une fonderie existante devient une EXTENSION
-  -- de sa chaîne (allonge la voie et la capacité, sans coffres ni signal).
-  local west = composite.adjacent_west(e, storage.foundries)
-  if west then
-    local master = master_of(west)
-    if not master then
-      cancel_build(event, e, "extension-need-master")
-      return
-    end
+  if master then
+    storage.pending_extensions[extension_key(e.surface, e.position)] = nil
     local st = composite.build_extension(e, master.entity.unit_number)
     storage.foundries[e.unit_number] = st
     ensure_roof(st)  -- déco portique au-dessus des voies de l'extension
+    ensure_idle_render(st)
     master.extensions = master.extensions or {}
     master.extensions[#master.extensions + 1] = e.unit_number
     refresh_chain_minable(master)  -- nouvelle extension = seule minable
@@ -614,21 +987,15 @@ local function on_built(event)
     return
   end
 
-  -- Sinon c'est un nouveau MAÎTRE : une seule chaîne (un master) par surface.
-  for _, st in pairs(storage.foundries) do
-    if st.role == "master" and st.entity and st.entity.valid
-      and st.entity.surface == e.surface then
-      cancel_build(event, e, "one-per-surface")
-      return
-    end
-  end
-  -- Plus d'exigence de rail préparé à la pose : la fonderie pose elle-même sa
+  -- Première fonderie de la surface : elle devient le MAÎTRE. Plus d'exigence de
+  -- rail préparé à la pose : la fonderie pose elle-même sa
   -- voie interne (et donc son raccord de sortie ouest) via composite.build. Le
   -- joueur raccorde son réseau à la voie de sortie après coup ; la sortie est
   -- (droite) s'active à la demande depuis la fenêtre.
   local st = composite.build(e)
   storage.foundries[e.unit_number] = st
   ensure_roof(st)  -- déco portique au-dessus des voies
+  ensure_idle_render(st)
 end
 
 local function on_removed(event)
@@ -636,14 +1003,14 @@ local function on_removed(event)
   local e = event.entity
   if not (e and e.valid) then return end
   if e.name ~= MAIN then return end
-  local un = e.unit_number  -- capturé tant que e est valide (destroy plus bas
-                            -- peut invalider e → ne plus lire e.unit_number après)
+  local un = e.unit_number
   local st = storage.foundries[un]
   if not st then return end
 
   -- Détache une EXTENSION de sa chaîne (met à jour la liste du master).
   if st.role == "extension" then
     local master = st.master and storage.foundries[st.master]
+    if master then clear_pending_extensions(master.entity.unit_number) end
     if master and master.extensions then
       for i = #master.extensions, 1, -1 do
         if master.extensions[i] == un then
@@ -665,6 +1032,7 @@ local function on_removed(event)
   end
 
   -- Rend les composants (+ carburant) d'une construction en cours avant le nettoyage.
+  clear_pending_extensions(un)
   if st.work and st.work.phase ~= "waiting" and st.work.need then
     builder.refund(st, st.work.need, st.work.fuel_item)
   end
@@ -911,9 +1279,14 @@ script.on_nth_tick(TICK_INTERVAL, function()
   -- (elles n'apportent que voie et capacité).
   local book_changed = {}
   for un, st in pairs(storage.foundries) do
+    if st.entity and st.entity.valid
+        and st.blocker_layout_version ~= composite.BLOCKER_LAYOUT_VERSION then
+      composite.ensure_blocker(st)
+    end
     if st.role ~= "extension" and st.entity and st.entity.valid then
       if names.has_bpchest then book_changed[un] = sync_templates(st) end
       process_foundry(st)
+      refresh_chain_work_renders(st)
       builder.update_circuit(st)
       builder.check_recycle(st)  -- déconstruit un train arrêté à la gare de recyclage
     end
@@ -1593,6 +1966,15 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
     return
   end
+  if el.name == "tf-add-extension" then
+    ensure_storage()
+    local un = gui.window_unit_number(player)
+    local st = un and storage.foundries[un]
+    if st and st.role == "master" and st.entity and st.entity.valid then
+      request_extension(player, st)
+    end
+    return
+  end
   if el.name == "tf-circuit-close" then
     local w = player.gui.screen[gui.CIRCUIT_WINDOW]
     if w then w.destroy() end
@@ -1904,10 +2286,9 @@ commands.add_command(names.mod .. "-debug", "État de la Train Foundry survolée
   end
   local w = st.work
   player.print(string.format(
-    "[tf-debug] rails=%d/%d raccord=%s coffre=%s combi=%s signal=%s "
+    "[tf-debug] rails=%d/%d coffre=%s combi=%s signal=%s "
     .. "templates=%d queue=%d work=%s",
     rails_ok, #st.rails,
-    composite.has_junction_rail(e) and "ok" or "MANQUANT",
     stock,
     (st.combinator and st.combinator.valid) and "ok" or "MANQUANT",
     signal, #st.templates, #st.queue, w and w.phase or "-"))
@@ -1961,5 +2342,3 @@ commands.add_command(names.mod .. "-debug", "État de la Train Foundry survolée
     player.print("[tf-debug] poteau = MANQUANT")
   end
 end)
-
-

@@ -1,6 +1,6 @@
 # Train Foundry
 
-A Factorio 2.0 / 2.1 mod. Build complete trains from blueprint templates instead
+A Factorio 2.1 mod. Build complete trains from blueprint templates instead
 of placing every locomotive and wagon by hand.
 
 ![The foundry](docs/building.png)
@@ -9,6 +9,9 @@ A large foundry building sits on the end of one of your rail lines. Import a
 train blueprint, queue it, and the foundry assembles the whole train and sends it
 off onto your network on its own — composition, orientation, colors, fuel,
 schedule, train group and blueprint parameters included.
+
+The industrial hall comes alive during assembly: its robotic arms move while
+work lights and welding sparks follow the train's construction.
 
 ![The interface](docs/interface.png)
 
@@ -34,9 +37,11 @@ schedule, train group and blueprint parameters included.
 
 ## Longer trains
 
-Place another Train Foundry against the east side of an existing one to chain it
-as an **extension**: the track and capacity extend across the whole hall (+5
+Use **Add extension** in the foundry window to place an aligned construction
+ghost on its east side: the track and capacity extend across the whole hall (+5
 vehicles per module). The chain is driven from a single window.
+
+![Add an extension from the foundry window](docs/add-extension.png)
 
 ![Chained foundries](docs/extensions.png)
 
@@ -50,9 +55,9 @@ vehicles per module). The chain is driven from a single window.
 
 ## Building from source
 
-`./build.sh package` produces the Factorio 2.0 zip and the 2.1 zip from the same
-source. `./build.sh link` symlinks the repo into `~/.factorio/mods` for
-development.
+`./build.sh package` produces the Blueprint and Smart Train Combinator zips for
+Factorio 2.1. `./build.sh link bp` or `./build.sh link stc` assembles a variant
+and symlinks it into `~/.factorio/mods` for development.
 
 ## License
 
