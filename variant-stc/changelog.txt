@@ -2,8 +2,8 @@
 Version: 1.4.1
 Date: 2026-09-27
   Compatibility:
-    - Mini Trains and other mods with shorter or longer rolling stock: blueprints are no longer
-      rejected as "not on a straight track", and the vehicles are built coupled.
+    - Mini Trains and other mods with shorter or longer rolling stock: trains are now built
+      coupled, and the foundry capacity follows the real train length.
   Bugfixes:
     - Fixed a crash with Factorio 2.1.20 when creating a train (renamed fuel category API).
 

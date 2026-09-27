@@ -148,4 +148,12 @@ Left untouched, every fuel is accepted in normal quality.
   and refunds its cost.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry
   from anywhere. One foundry (chain) per planet.
-- **Compatible** with vanilla, Space Age and Nullius.
+
+### Compatibility
+
+- **Space Age** — quality is supported end to end, including in the generated
+  station names.
+- **Pyanodon** — the technology and recipe follow the Py science progression.
+- **Nullius**.
+- **Mini Trains** and other mods with shorter or longer rolling stock — vehicles
+  are built coupled, and the foundry capacity follows the real train length.

@@ -114,4 +114,14 @@ quality.
   and refunds its cost.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry's
   window from anywhere — no need to walk to it. One foundry (chain) per planet.
-- **Compatible** with vanilla, Space Age and Nullius.
+
+### Compatibility
+
+- **Space Age** — quality is supported end to end: a legendary blueprint asks for
+  legendary components and builds a legendary train.
+- **Pyanodon** — the technology and recipe follow the Py science progression.
+- **Nullius**.
+- **Mini Trains** and other mods with shorter or longer rolling stock — vehicles
+  are built coupled, and the foundry capacity follows the real train length.
+- **Equipment grid mods** — the equipment of a blueprinted vehicle is installed on
+  the built one.
