@@ -19,7 +19,7 @@ orientation, colors, fuel, schedule, train group and blueprint parameters.
 During assembly, the industrial hall comes alive: robotic arms move while work
 lights and welding sparks follow the train's construction.
 
-![The foundry](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/building.png)
+![The foundry](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/building.png)
 
 ### How it works
 
@@ -32,7 +32,7 @@ lights and welding sparks follow the train's construction.
   west apron — drop your train blueprints there (by hand or with inserters). The
   foundry's window lists them; click a plan to queue it. Blueprints must contain
   only the train (rails and signals under it are fine).
-![The blueprint chest](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/bp-chest.png)
+![The blueprint chest](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/bp-chest.png)
 
 - **Queue trains.** Click a template to queue it; blueprint parameters are asked
   once. Trains are built one after another.
@@ -43,7 +43,7 @@ lights and welding sparks follow the train's construction.
 - **Off it goes.** Once built and the track is clear, the train drives away with
   its schedule, group, fuel and equipment already set.
 
-![The interface](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/interface.png)
+![The interface](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/interface.png)
 
 ### Left or right exit
 
@@ -53,7 +53,7 @@ the panel button in the title bar, and use the **Configuration** window to tick
 once. The train takes whichever open side its schedule leads to. On a chained
 foundry the east exit follows the far end of the chain automatically.
 
-![The Configuration window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/configuration.png)
+![The Configuration window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/configuration.png)
 
 ### Longer trains
 
@@ -65,9 +65,9 @@ extension, 15 with two, and so on). Extensions have no chests or signal of their
 own: the whole chain is driven from one window, and the stock stays on the west
 end while the exits work across the whole hall.
 
-![Add an extension from the foundry window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/add-extension.png)
+![Add an extension from the foundry window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/add-extension.png)
 
-![Chained foundries for longer trains](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/extensions.png)
+![Chained foundries for longer trains](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/extensions.png)
 
 ### Recycling track
 
@@ -101,7 +101,7 @@ keeping pentapod eggs and Gleba produce out of your locomotives, or for reservin
 rocket fuel for something else. Left untouched, every fuel is accepted in normal
 quality.
 
-![The Accepted fuels window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/accepted-fuels.png)
+![The Accepted fuels window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/accepted-fuels.png)
 
 ### Extras
 

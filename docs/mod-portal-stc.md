@@ -1,6 +1,6 @@
 <!--
   Description prête à coller dans le champ "Description" du mod portal Factorio
-  pour train-foundry-stc. Même repo GitHub que la variante BP (factorio-train-foundry) :
+  pour train-foundry-stc. Même repo GitHub que la variante BP (Kardorio/train-foundry) :
   les images docs/stc-*.png sont donc au même endroit, URLs ABSOLUES
   raw.githubusercontent.com sur la branche `main`. À créer via screenshots, puis
   pousser. À la prochaine release, mets ce fichier à jour et recolle-le.
@@ -22,7 +22,7 @@ lights and welding sparks follow the train's construction.
 > **[Train Foundry](https://mods.factorio.com/mod/train-foundry)** instead — you can run both,
 > one building of each per surface.
 
-![The foundry](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-building.png)
+![The foundry](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/stc-building.png)
 
 ### Built around Smart Train Combinator
 
@@ -65,7 +65,7 @@ network.
   encodes its shape. The station names match Smart Train Combinator's own naming,
   so the interrupts line up with your STC stops out of the box.
 
-![The interface](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-interface.png)
+![The interface](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/stc-interface.png)
 
 ### Or draw the train yourself
 
@@ -96,7 +96,7 @@ quality — a station name carries a single wagon icon and a single quality, so 
 mixed train could never match a stop. Locomotives are free: type, tier and quality
 as you like.
 
-![The composer](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-composer.png)
+![The composer](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/stc-composer.png)
 
 ### Fuel, handled for you
 
@@ -118,7 +118,7 @@ otherwise, normal as a last resort. Handy for keeping pentapod eggs and Gleba
 produce out of your locomotives, or for reserving rocket fuel for something else.
 Left untouched, every fuel is accepted in normal quality.
 
-![The Accepted fuels window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/accepted-fuels.png)
+![The Accepted fuels window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/accepted-fuels.png)
 
 ### Left or right exit, longer trains, and more
 
@@ -129,11 +129,11 @@ Left untouched, every fuel is accepted in normal quality.
   aligned construction ghost on the east side after checking that the area is
   suitable; each module adds room for five more vehicles.
 
-![Add an extension from the foundry window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/add-extension.png)
+![Add an extension from the foundry window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/add-extension.png)
 
-![The Configuration window](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-configuration.png)
+![The Configuration window](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/stc-configuration.png)
 
-![Chained foundries for longer trains](https://raw.githubusercontent.com/kardagan/factorio-train-foundry/main/docs/stc-extensions.png)
+![Chained foundries for longer trains](https://raw.githubusercontent.com/Kardorio/train-foundry/main/docs/stc-extensions.png)
 
 - **Recycling track.** Tick it in the Configuration window to add a second,
   dead-end track with a **Train Recycle** stop: route a train onto it and the
