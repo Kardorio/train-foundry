@@ -1145,9 +1145,9 @@ local function sync_templates(state)
   local inv = chest.get_inventory(defines.inventory.chest)
   if not inv then return end
 
-  -- Capacité courante de la chaîne (base + extensions) : sert à refuser un
-  -- train trop long à l'import. Change si on ajoute/retire une extension.
-  local capacity = builder.capacity(state)
+  -- Longueur max de la chaîne (base + extensions) : sert à refuser un train
+  -- trop long à l'import. Change si on ajoute/retire une extension.
+  local capacity = builder.max_length(state)
 
   -- Si la capacité a changé (extension ajoutée/retirée), on invalide le cache
   -- par signature pour re-parser : un plan « trop long » peut redevenir valide
@@ -2112,9 +2112,11 @@ script.on_event(defines.events.on_gui_click, function(event)
     -- Un train plus long que la fonderie ne pourrait jamais sortir : on refuse
     -- ici plutôt que de le laisser bloquer la file (spawn le rejetterait après
     -- avoir attendu tous ses composants).
-    if #tmpl.stock > builder.capacity(st) then
+    if not builder.fits(st, tmpl.stock) then
       player.create_local_flying_text({
-        text = { "tf-gui.custom-too-long", #tmpl.stock, builder.capacity(st) },
+        text = { "tf-gui.custom-too-long",
+                 builder.fmt_length(builder.train_length(tmpl.stock)),
+                 builder.fmt_length(builder.max_length(st)) },
         position = st.entity.position })
       return
     end

@@ -86,21 +86,61 @@ end
 builder.qtag = qtag
 
 -- Géométrie : voie interne sur la rangée +5, utilisable du mur ouest (-16)
--- au bout des rails (+18). Tête du train à l'ouest, véhicules espacés de 7.
+-- au bout des rails (+18). Tête du train à l'ouest ; HEAD_X est le centre d'un
+-- véhicule vanilla de tête (SPACING = longueur d'attelage vanilla).
 local RAIL_Y = 5
 local DECO_RAIL_Y = 1   -- 2e voie (recyclage), doit coïncider avec composite
 local HEAD_X = -12
 local SPACING = 7
--- Longueur max d'un train (nombre de véhicules) par MODULE. La capacité réelle
--- d'une fonderie = PER_MODULE × (1 + nombre d'extensions accolées).
+-- Capacité par MODULE, en véhicules VANILLA. La capacité réelle se mesure en
+-- longueur (PER_MODULE × SPACING tuiles par module) : des mini-wagons ou des
+-- wagons moddés plus longs n'ont pas la même emprise qu'un wagon vanilla.
 builder.MAX_STOCK = 5
 local PER_MODULE = builder.MAX_STOCK
 
--- Capacité (véhicules max) d'une chaîne : base + une portion par extension.
--- `state` est le master (celui qui porte extensions/queue/work).
+-- Capacité (véhicules vanilla max) d'une chaîne : base + une portion par
+-- extension. `state` est le master (celui qui porte extensions/queue/work).
 function builder.capacity(state)
   local n_ext = (state and state.extensions and #state.extensions) or 0
   return PER_MODULE * (1 + n_ext)
+end
+
+-- Longueur d'attelage d'un véhicule : l'écart entre les centres de deux
+-- véhicules attelés vaut la moyenne de leurs longueurs (7 en vanilla, moins
+-- pour Mini Trains). Un véhicule posé à un autre écart ne s'attelle pas.
+function builder.vehicle_length(name)
+  local p = name and prototypes.entity[name]
+  local j = p and p.joint_distance
+  local c = p and p.connection_distance
+  if j and c and j + c > 0 then return j + c end
+  return SPACING
+end
+
+function builder.gap(a, b)
+  return (builder.vehicle_length(a) + builder.vehicle_length(b)) / 2
+end
+
+function builder.train_length(stock)
+  local len = 0
+  for _, s in ipairs(stock) do len = len + builder.vehicle_length(s.name) end
+  return len
+end
+
+-- Longueur max (tuiles) d'un train dans la chaîne.
+function builder.max_length(state)
+  return SPACING * builder.capacity(state)
+end
+
+function builder.fits(state, stock)
+  return builder.train_length(stock) <= builder.max_length(state) + 0.01
+end
+
+-- Affichage d'une longueur en tuiles (les longueurs moddées peuvent être
+-- fractionnaires).
+function builder.fmt_length(len)
+  local r = math.floor(len * 10 + 0.5) / 10
+  if r == math.floor(r) then return tostring(math.floor(r)) end
+  return tostring(r)
 end
 
 -- Durée de construction : 4 s par véhicule.
@@ -298,6 +338,20 @@ local function is_perishable(item_proto)
 end
 builder.is_perishable = is_perishable
 
+-- Un item brûle-t-il dans l'une des catégories `cats` (set nom -> true) ? Depuis
+-- 2.1.20 l'item porte une LISTE `fuel_categories` (l'ancien `fuel_category` a
+-- disparu et y accéder lève une erreur).
+local function burns_in(item_proto, cats)
+  if not (item_proto and item_proto.fuel_value and item_proto.fuel_value > 0) then
+    return false
+  end
+  for _, cat in ipairs(item_proto.fuel_categories or {}) do
+    if cats[cat] then return true end
+  end
+  return false
+end
+builder.burns_in = burns_in
+
 local function unlocked_fuels(force, cats)
   if not next(cats) then return {} end
   -- Ensemble des items produits par une recette activée de la force.
@@ -316,9 +370,7 @@ local function unlocked_fuels(force, cats)
     -- (yumako, jellynut, nutrients, bioflux…) sont brûlables mais pourrissent en
     -- soute. Le critère est générique — aucun vrai carburant ne pourrit — donc
     -- valable aussi pour les carburants ajoutés par un mod.
-    if it and it.fuel_value and it.fuel_value > 0
-       and it.fuel_category and cats[it.fuel_category]
-       and not is_perishable(it) then
+    if burns_in(it, cats) and not is_perishable(it) then
       out[#out + 1] = { name = name, fuel_value = it.fuel_value }
     end
   end
@@ -802,7 +854,7 @@ end
 function builder.spawn(state, template, params, fuel_item, generic)
   local e = state.entity
   if not (e and e.valid) then return nil, "spawn-failed" end
-  if #template.stock > builder.capacity(state) then
+  if not builder.fits(state, template.stock) then
     return nil, "spawn-too-long"
   end
   local inv = shared_inventory(state)
@@ -836,6 +888,22 @@ function builder.spawn(state, template, params, fuel_item, generic)
       or defines.direction.west
   end
 
+  -- Abscisse de chaque slot (0 = le plus à l'ouest), écarts cumulés entre
+  -- voisins physiques. Le premier véhicule garde son flanc ouest là où serait
+  -- celui d'un véhicule vanilla.
+  local slot_x = {}
+  do
+    local function at_slot(k)
+      return flip_east and template.stock[count - k] or template.stock[k + 1]
+    end
+    local x = head_x + (builder.vehicle_length(at_slot(0).name) - SPACING) / 2
+    slot_x[0] = x
+    for k = 1, count - 1 do
+      x = x + builder.gap(at_slot(k - 1).name, at_slot(k).name)
+      slot_x[k] = x
+    end
+  end
+
   local spawned = {}
   for i, s in ipairs(template.stock) do
     local dir, slot
@@ -855,7 +923,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
     local v = e.surface.create_entity({
       name = s.name,
       quality = quality_of(s),
-      position = { e.position.x + head_x + slot * SPACING,
+      position = { e.position.x + slot_x[slot],
                    e.position.y + RAIL_Y },
       direction = dir,
       force = e.force,
@@ -913,7 +981,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
           if bp then
             for _, it in pairs(inv.get_contents()) do
               local ip = prototypes.item[it.name]
-              if ip and ip.fuel_category and bp.fuel_categories[ip.fuel_category]
+              if burns_in(ip, bp.fuel_categories)
                  and not is_perishable(ip)
                  and fuel_allowed(state.fuel_pref, it.name, quality_of(it)) then
                 local count = math.min(it.count, ip.stack_size)
@@ -1127,7 +1195,7 @@ end
 -- composants, la voie et la sortie, consomme puis pose. `generic` = mode carburant
 -- générique (voir compute_need/spawn).
 function builder.try_spawn(state, template, params, generic)
-  if #template.stock > builder.capacity(state) then
+  if not builder.fits(state, template.stock) then
     return nil, "spawn-too-long"
   end
   local need = builder.compute_need(template, generic)

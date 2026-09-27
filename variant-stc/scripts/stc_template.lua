@@ -38,6 +38,7 @@
 -- ===========================================================================
 
 local names = require("names")
+local builder = require("scripts.builder")
 
 local stc_template = {}
 
@@ -103,8 +104,7 @@ local function compatible_fuels(loco_type)
   if not (burner and burner.fuel_categories) then return {} end
   local out = {}
   for name, it in pairs(prototypes.item) do
-    if it.fuel_value and it.fuel_value > 0
-       and it.fuel_category and burner.fuel_categories[it.fuel_category] then
+    if builder.burns_in(it, burner.fuel_categories) then
       out[#out + 1] = { name = name, fuel_value = it.fuel_value,
                         stack_size = it.stack_size }
     end

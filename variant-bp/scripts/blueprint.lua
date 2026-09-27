@@ -61,10 +61,10 @@ end
 -- Lit un blueprint (LuaItemStack OU LuaRecord de la bibliothèque) et en
 -- extrait un template de train. Retourne template, nil en cas de succès ;
 -- nil, "clé-erreur" sinon (clés de la section [tf-msg] des locales).
--- `capacity` = longueur max autorisée (défaut builder.MAX_STOCK) : dépend de
--- la chaîne d'extensions de la fonderie qui importe.
-function blueprint.parse(source, capacity)
-  capacity = capacity or builder.MAX_STOCK
+-- `max_length` = longueur max autorisée en tuiles (défaut : un module) : dépend
+-- de la chaîne d'extensions de la fonderie qui importe.
+function blueprint.parse(source, max_length)
+  max_length = max_length or builder.max_length(nil)
   if not (source and source.valid) then
     return nil, "import-not-blueprint"
   end
@@ -113,16 +113,9 @@ function blueprint.parse(source, capacity)
     for tag in pairs(intruders) do names[#names + 1] = tag end
     return nil, "import-not-clean", table.concat(names, " ")
   end
-  -- Refuse dès l'import un train trop long pour la voie interne (plutôt que
-  -- de le lancer et voir les véhicules retomber dans le coffre). La capacité
-  -- dépend de la chaîne d'extensions de la fonderie.
-  if #stock > capacity then
-    return nil, "import-too-long", tostring(capacity)
-  end
-
   -- Le train du blueprint doit être posé sur une voie DROITE : on détecte
-  -- l'axe dominant, on exige la colinéarité et l'espacement standard des
-  -- attelages (7 tuiles entre centres).
+  -- l'axe dominant, on exige la colinéarité et l'écart d'attelage de chaque
+  -- paire de véhicules (7 tuiles en vanilla, propre au prototype sinon).
   local minx, maxx = math.huge, -math.huge
   local miny, maxy = math.huge, -math.huge
   for _, e in ipairs(stock) do
@@ -158,9 +151,17 @@ function blueprint.parse(source, capacity)
     else
       d = stock[i].position.y - stock[i - 1].position.y
     end
-    if math.abs(d - 7) > 0.6 then
+    if math.abs(d - builder.gap(stock[i - 1].name, stock[i].name)) > 0.6 then
       return nil, "import-not-straight"
     end
+  end
+
+  -- Refuse dès l'import un train trop long pour la voie interne (plutôt que
+  -- de le lancer et voir les véhicules retomber dans le coffre).
+  local length = builder.train_length(stock)
+  if length > max_length + 0.01 then
+    return nil, "import-too-long",
+      { builder.fmt_length(length), builder.fmt_length(max_length) }
   end
 
   -- Aucune contrainte de SENS des locomotives : la fonderie peut sortir à gauche

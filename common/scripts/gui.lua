@@ -614,6 +614,16 @@ end
 -- (autre qu'un train, trop long, pas sur voie droite) apparaît en rouge, non
 -- cliquable, avec la raison en infobulle. La suppression se fait en retirant
 -- le BP du coffre, pas ici.
+-- Motif de refus d'un plan : `invalid_detail` est une chaîne, ou une liste de
+-- paramètres quand le message en attend plusieurs.
+local function invalid_msg(t)
+  local d = t.invalid_detail
+  if type(d) == "table" then
+    return { "tf-msg." .. t.invalid, d[1] or "", d[2] or "" }
+  end
+  return { "tf-msg." .. t.invalid, d or "" }
+end
+
 function gui.refresh_templates(player, state)
   local body = body_of(player)
   local list = body and body["tf-left"]["tf-templates-scroll"]["tf-templates"]
@@ -683,7 +693,7 @@ function gui.refresh_templates(player, state)
     local tip
     if t.invalid then
       tip = { "", title, "\n[color=255,80,80]",
-              { "tf-msg." .. t.invalid, t.invalid_detail or "" },
+              invalid_msg(t),
               "[/color]" }
     else
       tip = { "", title, "\n", stock_caption(t), "\n",
@@ -731,7 +741,7 @@ function gui.refresh_templates(player, state)
     if t.invalid then
       local why = info.add({
         type = "label",
-        caption = { "tf-msg." .. t.invalid, t.invalid_detail or "" },
+        caption = invalid_msg(t),
       })
       why.style.font_color = { 1, 0.4, 0.4 }
       why.style.single_line = false
@@ -1960,7 +1970,8 @@ function gui.refresh_composer(player, state, draft)
   table_el.clear()
 
   local slots = draft.slots or {}
-  local capacity = builder.capacity(state)
+  local length = builder.train_length(slots)
+  local max_length = builder.max_length(state)
 
   -- Colonne d'une case : [bouton d'orientation] / [case] / [libellé].
   -- Les trois étages existent toujours, vides au besoin, pour que les cases
@@ -1999,8 +2010,8 @@ function gui.refresh_composer(player, state, draft)
   end
 
   -- Une colonne par véhicule, plus une case VIDE en fin de rangée tant que la
-  -- fonderie peut allonger le train (capacité de la chaîne).
-  local n_shown = #slots + ((#slots < capacity) and 1 or 0)
+  -- fonderie peut allonger le train (longueur de la chaîne).
+  local n_shown = #slots + ((length < max_length) and 1 or 0)
   for i = 1, n_shown do
     local s = slots[i]
     local top, mid = column()
@@ -2053,10 +2064,16 @@ function gui.refresh_composer(player, state, draft)
     local kind_lbl = (shape.kind == "fluid") and { "tf-gui.stc-fluid" }
                                              or { "tf-gui.stc-solid" }
     shape_lbl.caption = { "tf-gui.composer-shape", kind_lbl, shape.wagons,
-                          #slots, capacity }
+                          builder.fmt_length(length),
+                          builder.fmt_length(max_length) }
   else
-    shape_lbl.caption = { "tf-gui.composer-shape-none", #slots, capacity }
+    shape_lbl.caption = { "tf-gui.composer-shape-none",
+                          builder.fmt_length(length),
+                          builder.fmt_length(max_length) }
   end
+  -- Un véhicule moddé plus long peut faire déborder la dernière case.
+  shape_lbl.style.font_color = (length > max_length + 0.01)
+    and { 1, 0.4, 0.4 } or { 1, 1, 1 }
 
   -- Aperçu du nom de gare. La ressource n'est choisie qu'à la mise en file : on
   -- montre le paramètre par le signal « item paramétré », comme le fait le jeu
