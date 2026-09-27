@@ -99,12 +99,11 @@ end
 -- si la loco n'a pas de burner (solaire). Trié par fuel_value décroissant pour un
 -- affichage stable.
 local function compatible_fuels(loco_type)
-  local proto = prototypes.entity[loco_type]
-  local burner = proto and proto.burner_prototype
-  if not (burner and burner.fuel_categories) then return {} end
+  local cats = builder.loco_fuel_categories(loco_type)
+  if not next(cats) then return {} end
   local out = {}
   for name, it in pairs(prototypes.item) do
-    if builder.burns_in(it, burner.fuel_categories) then
+    if builder.burns_in(it, cats) then
       out[#out + 1] = { name = name, fuel_value = it.fuel_value,
                         stack_size = it.stack_size }
     end
@@ -128,9 +127,11 @@ local function fuel_profile(stock)
   local seen, fuels, slots = {}, {}, 0
   for _, s in ipairs(stock or {}) do
     local proto = prototypes.entity[s.name]
-    if proto and proto.type == "locomotive" then
+    local fuels_of = (proto and proto.type == "locomotive")
+      and compatible_fuels(s.name) or {}
+    if #fuels_of > 0 then
       slots = math.max(slots, fuel_slots(s.name))
-      for _, f in ipairs(compatible_fuels(s.name)) do
+      for _, f in ipairs(fuels_of) do
         if not seen[f.name] then
           seen[f.name] = true
           fuels[#fuels + 1] = f
@@ -442,15 +443,15 @@ function stc_template.shape_of(custom)
     if not class then return nil, "bad-slot" end
     if class == "loco" then
       n_locos = n_locos + 1
-      local burner = prototypes.entity[s.name].burner_prototype
-      if burner and burner.fuel_categories then
+      local cats = builder.loco_fuel_categories(s.name)
+      if next(cats) then
         n_burners = n_burners + 1
         if fuel_cats == nil then
           fuel_cats = {}
-          for cat in pairs(burner.fuel_categories) do fuel_cats[cat] = true end
+          for cat in pairs(cats) do fuel_cats[cat] = true end
         else
           for cat in pairs(fuel_cats) do
-            if not burner.fuel_categories[cat] then fuel_cats[cat] = nil end
+            if not cats[cat] then fuel_cats[cat] = nil end
           end
         end
       end
