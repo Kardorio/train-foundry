@@ -234,7 +234,10 @@ local function requested_items(s)
         total = total + (pos.count or 1)
       end
     end
-    if name and total > 0 then
+    -- Un item caché (carburant factice injecté par un mod) ne peut pas être
+    -- fourni : l'exiger bloquerait la construction indéfiniment.
+    local ip = name and prototypes.item[name]
+    if name and total > 0 and not (ip and ip.hidden) then
       qadd(out, name, quality_of(req.id), total)
     end
   end
@@ -302,16 +305,65 @@ end
 -- solaire) n'a aucun besoin de carburant.
 -- ===========================================================================
 
+-- Une catégorie n'est un VRAI carburant que si au moins un de ses items est
+-- visible. Electronic Locomotives donne à ses locos une catégorie dont les
+-- items sont cachés et injectés par script : la fonderie ne doit ni les
+-- demander ni les brûler, la loco est traitée comme une loco solaire.
+-- Factorio 2.1.20 a remplacé fuel_category (chaîne) par fuel_categories (liste).
+-- Les LuaItemPrototype lèvent une erreur quand on lit le champ absent : pcall
+-- est nécessaire pour conserver le support de 2.1.0–2.1.19.
+local function item_fuel_categories(item_proto)
+  local ok, cats = pcall(function() return item_proto.fuel_categories end)
+  if ok then return cats or {} end
+  local cat = item_proto.fuel_category
+  return cat and { cat } or {}
+end
+
+local real_category_cache = nil
+local function is_real_fuel_category(cat)
+  if not real_category_cache then
+    real_category_cache = {}
+    for _, it in pairs(prototypes.item) do
+      if it.fuel_value and it.fuel_value > 0 and not it.hidden then
+        for _, c in ipairs(item_fuel_categories(it)) do
+          real_category_cache[c] = true
+        end
+      end
+    end
+  end
+  return real_category_cache[cat] == true
+end
+
+-- Catégories de VRAI carburant d'une loco (set nom -> true), vide si elle n'a
+-- pas de burner ou ne brûle que du carburant factice.
+local function loco_fuel_categories(loco_name)
+  local cats = {}
+  local proto = loco_name and prototypes.entity[loco_name]
+  local burner = proto and proto.burner_prototype
+  if burner and burner.fuel_categories then
+    for cat in pairs(burner.fuel_categories) do
+      if is_real_fuel_category(cat) then cats[cat] = true end
+    end
+  end
+  return cats
+end
+builder.loco_fuel_categories = loco_fuel_categories
+
+-- Loco alimentée par script : un burner, mais uniquement du carburant factice.
+local function is_script_powered(loco_name)
+  local proto = loco_name and prototypes.entity[loco_name]
+  local burner = proto and proto.burner_prototype
+  return burner ~= nil and next(burner.fuel_categories or {}) ~= nil
+    and not next(loco_fuel_categories(loco_name))
+end
+builder.is_script_powered = is_script_powered
+
 -- Catégories de carburant acceptées par les LOCOMOTIVES du stock (set
 -- fuel_category -> true). Vide si aucune loco à burner (ex. loco solaire).
 local function compatible_fuel_categories(stock)
   local cats = {}
   for _, s in ipairs(stock or {}) do
-    local proto = prototypes.entity[s.name]
-    local burner = proto and proto.burner_prototype
-    if burner and burner.fuel_categories then
-      for cat in pairs(burner.fuel_categories) do cats[cat] = true end
-    end
+    for cat in pairs(loco_fuel_categories(s.name)) do cats[cat] = true end
   end
   return cats
 end
@@ -338,14 +390,12 @@ local function is_perishable(item_proto)
 end
 builder.is_perishable = is_perishable
 
--- Un item brûle-t-il dans l'une des catégories `cats` (set nom -> true) ? Depuis
--- 2.1.20 l'item porte une LISTE `fuel_categories` (l'ancien `fuel_category` a
--- disparu et y accéder lève une erreur).
+-- Un item brûle-t-il dans l'une des catégories `cats` (set nom -> true) ?
 local function burns_in(item_proto, cats)
   if not (item_proto and item_proto.fuel_value and item_proto.fuel_value > 0) then
     return false
   end
-  for _, cat in ipairs(item_proto.fuel_categories or {}) do
+  for _, cat in ipairs(item_fuel_categories(item_proto)) do
     if cats[cat] then return true end
   end
   return false
@@ -421,10 +471,7 @@ function builder.all_loco_fuel_categories()
   local cats = {}
   for _, proto in pairs(prototypes.get_entity_filtered({
       { filter = "type", type = "locomotive" } })) do
-    local burner = proto.burner_prototype
-    if burner and burner.fuel_categories then
-      for cat in pairs(burner.fuel_categories) do cats[cat] = true end
-    end
+    for cat in pairs(loco_fuel_categories(proto.name)) do cats[cat] = true end
   end
   return cats
 end
@@ -462,14 +509,17 @@ local function loco_fuel_slots(loco_name, quality)
   return n or 0
 end
 
--- Quantité de `fuel` (item) nécessaire pour remplir À PLEIN toutes les locos du
--- stock : Σ slots(loco) × stack_size(fuel).
+-- Quantité de `fuel` (item) nécessaire pour remplir À PLEIN les locos du stock
+-- qui le brûlent : Σ slots(loco) × stack_size(fuel).
 local function loco_fuel_capacity(stock, fuel)
-  local stack = prototypes.item[fuel] and prototypes.item[fuel].stack_size or 0
+  local ip = prototypes.item[fuel]
+  local stack = ip and ip.stack_size or 0
   if stack <= 0 then return 0 end
   local slots = 0
   for _, s in ipairs(stock or {}) do
-    slots = slots + loco_fuel_slots(s.name, quality_of(s))
+    if burns_in(ip, loco_fuel_categories(s.name)) then
+      slots = slots + loco_fuel_slots(s.name, quality_of(s))
+    end
   end
   return slots * stack
 end
@@ -851,6 +901,59 @@ end
 -- historique (generic=false), on insère le carburant BLUEPRINTÉ tel quel (les
 -- item-requests fuel, déjà payées comme composants) et on ne fait NI remplissage
 -- au meilleur carburant NI repli.
+-- Locos alimentées par script (burner dont toutes les catégories sont
+-- factices) encore sans énergie.
+local function unpowered_script_locos(train)
+  local out = {}
+  for _, v in ipairs(train.locomotives.front_movers) do out[#out + 1] = v end
+  for _, v in ipairs(train.locomotives.back_movers) do out[#out + 1] = v end
+  local pending = {}
+  for _, v in ipairs(out) do
+    local burner = v.burner
+    if is_script_powered(v.name) and burner and burner.remaining_burning_fuel <= 0 then
+      pending[#pending + 1] = v
+    end
+  end
+  return pending
+end
+
+-- Passe le train en automatique, ou diffère le départ tant qu'une loco
+-- alimentée par script n'a pas reçu d'énergie : Electronic Locomotives retire
+-- de sa file une loco arrêtée hors de l'état on_the_path, et un train mis en
+-- automatique sans énergie ne serait donc jamais alimenté.
+local function depart(train)
+  if next(unpowered_script_locos(train)) then
+    storage.tf_departures = storage.tf_departures or {}
+    storage.tf_departures[train.id] = { train = train, retried = false }
+  else
+    train.manual_mode = false
+  end
+end
+
+-- Appelé périodiquement : libère les trains dont les locos ont reçu leur
+-- énergie. Au premier contrôle d'un train encore à sec, on relance une fois
+-- l'événement de construction de ses locos pour que leur mod les reprenne.
+function builder.process_departures()
+  if not storage.tf_departures then return end
+  for id, d in pairs(storage.tf_departures) do
+    local train = d.train
+    if not (train and train.valid) then
+      storage.tf_departures[id] = nil
+    else
+      local pending = unpowered_script_locos(train)
+      if not next(pending) then
+        train.manual_mode = false
+        storage.tf_departures[id] = nil
+      elseif not d.retried then
+        d.retried = true
+        for _, v in ipairs(pending) do
+          script.raise_script_built({ entity = v })
+        end
+      end
+    end
+  end
+end
+
 function builder.spawn(state, template, params, fuel_item, generic)
   local e = state.entity
   if not (e and e.valid) then return nil, "spawn-failed" end
@@ -927,10 +1030,13 @@ function builder.spawn(state, template, params, fuel_item, generic)
                    e.position.y + RAIL_Y },
       direction = dir,
       force = e.force,
+      -- Les mods qui gèrent eux-mêmes leurs locos (Electronic Locomotives…) ne
+      -- les découvrent que par un événement de construction.
+      raise_built = true,
     })
     if not v then
       for _, w in ipairs(spawned) do
-        if w.valid then w.destroy() end
+        if w.valid then w.destroy({ raise_destroy = true }) end
       end
       return nil, "spawn-failed"
     end
@@ -977,11 +1083,11 @@ function builder.spawn(state, template, params, fuel_item, generic)
           -- Repli : premier carburant compatible dispo en réserve, une pile. Il
           -- reste soumis à la préférence du joueur — sans ce filtre, une fonderie
           -- réglée sur un seul carburant brûlerait quand même le reste de la réserve.
-          local bp = v.prototype.burner_prototype
-          if bp then
+          local cats = loco_fuel_categories(v.name)
+          if next(cats) then
             for _, it in pairs(inv.get_contents()) do
               local ip = prototypes.item[it.name]
-              if burns_in(ip, bp.fuel_categories)
+              if burns_in(ip, cats)
                  and not is_perishable(ip)
                  and fuel_allowed(state.fuel_pref, it.name, quality_of(it)) then
                 local count = math.min(it.count, ip.stack_size)
@@ -1033,7 +1139,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
           end)
         end
         if (group and group ~= "") or (interrupts and #interrupts > 0) then
-          train.manual_mode = false
+          depart(train)
           departed = true
         end
         return
@@ -1085,7 +1191,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
           train.group = subst_station(group, params)
         end)
       end
-      train.manual_mode = false
+      depart(train)
       departed = true
     end)
   end

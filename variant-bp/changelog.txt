@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.2
+Date: 2026-10-02
+  Compatibility:
+    - Electronic Locomotives: electric trains built from blueprints are recognized by the mod and
+      wait for power before departure. Hidden fuel is no longer requested.
+  Bugfixes:
+    - The accepted fuels window no longer crashes on Factorio 2.1.19.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.4.1
 Date: 2026-09-27
   Compatibility:

@@ -1274,6 +1274,7 @@ end
 
 script.on_nth_tick(TICK_INTERVAL, function()
   ensure_storage()
+  builder.process_departures()
   -- unit_number -> le livre a-t-il changé ce tick (coffre modifié) ?
   -- Seuls les MAÎTRES portent file/travail/coffres : on ignore les extensions
   -- (elles n'apportent que voie et capacité).

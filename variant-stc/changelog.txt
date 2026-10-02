@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.2
+Date: 2026-10-02
+  Compatibility:
+    - Electronic Locomotives: electric trains wait for energy before departure and receive no
+      Refuel interrupt. Electric and fuel-burning trains use separate schedule groups.
+  Changes:
+    - Custom train templates cannot mix fuel-burning and fuel-free locomotives.
+  Bugfixes:
+    - The accepted fuels window no longer crashes on Factorio 2.1.19.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.4.1
 Date: 2026-09-27
   Compatibility:
