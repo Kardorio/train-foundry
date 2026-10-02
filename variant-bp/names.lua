@@ -7,7 +7,7 @@ return {
   -- n'a rien de neuf à annoncer : le code est commun à ~95 %, donc « la 1.3.0 »
   -- doit désigner un état du repo et pas deux. Sans cette règle, retrouver le
   -- commit derrière un rapport de bug demanderait une table de correspondance.
-  version     = "1.4.1",                  -- (mod désormais Factorio 2.1 uniquement)
+  version     = "1.4.2",                  -- (mod désormais Factorio 2.1 uniquement)
   mod         = "train-foundry",          -- nom du mod (chemin __<mod>__/graphics)
   building    = "train-foundry",          -- entité-bâtiment (INCHANGÉ)
   rail        = "tf-rail",

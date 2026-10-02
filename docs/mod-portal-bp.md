@@ -123,5 +123,7 @@ quality.
 - **Nullius**.
 - **Mini Trains** and other mods with shorter or longer rolling stock — vehicles
   are built coupled, and the foundry capacity follows the real train length.
+- **Electronic Locomotives** — electric trains built from blueprints are picked
+  up by the mod and wait for power before leaving the foundry.
 - **Equipment grid mods** — the equipment of a blueprinted vehicle is installed on
   the built one.

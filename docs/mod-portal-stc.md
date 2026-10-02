@@ -157,3 +157,5 @@ Left untouched, every fuel is accepted in normal quality.
 - **Nullius**.
 - **Mini Trains** and other mods with shorter or longer rolling stock — vehicles
   are built coupled, and the foundry capacity follows the real train length.
+- **Electronic Locomotives** — electric trains wait for power before leaving.
+  Custom templates cannot mix fuel-burning and fuel-free locomotives.
