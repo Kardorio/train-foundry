@@ -39,4 +39,15 @@ train under construction.
   components are two independent outputs, each with its own wire choice (red, green, or both).
 - **Clear stuck train**: one click destroys and refunds a train that cannot leave.
 - **Remote control**: a shortcut-bar button (and Ctrl+Alt+F) opens the foundry from anywhere.
-- One foundry per planet. Vanilla, Space Age and Nullius compatible.
+- One foundry per surface.
+
+## Compatibility
+
+- **Space Age**: quality is supported throughout train production.
+- **Space Exploration**: in orbit, the foundry and its extensions use space rails. Cover the full
+  footprint and rail connections with space platform before building. On planets, they use regular
+  rails.
+- **Pyanodon** and **Nullius**: the technology and recipe adapt to their progression.
+- **Mini Trains** and other mods with nonstandard vehicle lengths: trains are built coupled, and
+  capacity follows their actual length.
+- **Electronic Locomotives**: electric trains wait for power before departure.

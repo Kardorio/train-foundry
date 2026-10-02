@@ -58,4 +58,16 @@ free.
 - **Exit sides** (left/right), **chainable extensions** added from the foundry window for longer
   trains, **clear stuck train** button, and Factoriopedia on component/fuel slots.
 - **Remote control**: a shortcut-bar button (and Ctrl+Alt+F) opens the foundry from anywhere.
-- One foundry per planet. Vanilla, Space Age and Nullius compatible.
+- One foundry per surface.
+
+## Compatibility
+
+- **Space Age**: quality is supported throughout train production and in generated station names.
+- **Space Exploration**: in orbit, the foundry and its extensions use space rails. Cover the full
+  footprint and rail connections with space platform before building. On planets, they use regular
+  rails.
+- **Pyanodon** and **Nullius**: the technology and recipe adapt to their progression.
+- **Mini Trains** and other mods with nonstandard vehicle lengths: trains are built coupled, and
+  capacity follows their actual length.
+- **Electronic Locomotives**: electric trains wait for power before departure; custom templates
+  cannot mix fuel-burning and fuel-free locomotives.

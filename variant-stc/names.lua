@@ -3,12 +3,15 @@
 -- installé (coexistence « 1 de chaque par surface »). Pas de coffre à blueprints.
 return {
   source      = "stc",
-  version     = "1.4.2",                   -- semver publié (mod Factorio 2.1 uniquement)
+  version     = "1.4.3",                   -- semver publié (mod Factorio 2.1 uniquement)
   mod         = "train-foundry-stc",       -- nom du mod (chemin __<mod>__/graphics)
   building    = "tfstc-foundry",
   rail        = "tfstc-rail",
   rail_over   = "tfstc-rail-over",
   rail_ext    = "tfstc-rail-ext",           -- rail hors bâtiment : sélectionnable, non-minable
+  rail_space  = "tfstc-space-rail",
+  rail_over_space = "tfstc-space-rail-over",
+  rail_ext_space = "tfstc-space-rail-ext",
   input       = "tfstc-input",
   signal      = "tfstc-signal",
   combinator  = "tfstc-combinator",          -- émetteur du STOCK (fil rouge du poteau)

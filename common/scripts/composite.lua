@@ -20,6 +20,21 @@ local composite = {}
 local RAIL       = names.rail
 local RAIL_OVER  = names.rail_over  -- rail dessiné par-dessus le mur (sortie est)
 local RAIL_EXT   = names.rail_ext   -- rail hors bâtiment : sélectionnable, extensible
+function composite.is_se_orbit(surface)
+  local se = remote.interfaces["space-exploration"]
+  if se and se.get_surface_type then
+    return remote.call("space-exploration", "get_surface_type",
+      { surface_index = surface.index }) == "orbit"
+  end
+  return false
+end
+
+local function rail_names(surface)
+  if prototypes.entity[names.rail_space] and composite.is_se_orbit(surface) then
+    return names.rail_space, names.rail_over_space, names.rail_ext_space
+  end
+  return RAIL, RAIL_OVER, RAIL_EXT
+end
 local RECYCLE_STOP = names.recycle_stop  -- gare de recyclage (train-stop)
 local BLOCK_SIGNAL = names.block_signal  -- signal toujours rouge (anti-marche-arrière)
 local BLOCK_COMBI  = names.block_combi   -- combinateur qui ferme le signal de blocage
@@ -209,6 +224,7 @@ end
 -- (défaut state.rails). Utilisé pour la voie d'assemblage (RAIL_Y, state.rails)
 -- ET pour la 2e voie de déconstruction (DECO_RAIL_Y, state.rails_deco).
 local function lay_rails(state, entity, x_from, x_to, y, bucket)
+  local rail_name = rail_names(entity.surface)
   y = y or RAIL_Y
   bucket = bucket or state.rails
   for x = x_from, x_to, 2 do
@@ -218,12 +234,12 @@ local function lay_rails(state, entity, x_from, x_to, y, bucket)
       type = "straight-rail", position = pos, radius = 0.2 })) do
       if ex.direction % 8 == defines.direction.east % 8 then
         occupied = true
-        if ex.name == RAIL then track_entity(bucket, ex) end
+        if ex.name == rail_name then track_entity(bucket, ex) end
         break
       end
     end
     if not occupied then
-      local r = place(entity, RAIL, { x, y }, defines.direction.east)
+      local r = place(entity, rail_name, { x, y }, defines.direction.east)
       if r then bucket[#bucket + 1] = r end
     end
   end
@@ -240,6 +256,7 @@ end
 -- créés vont dans `bucket` (rails_junction). `ref` = une entité de la chaîne.
 local function fill_track_abs(master_state, ref, bucket, x_from_abs, x_to_abs)
   local surface = ref.surface
+  local rail_name, over_name = rail_names(surface)
   local ry = ref.position.y + RAIL_Y
   -- Aligne les bornes sur la grille IMPAIRE (les rails vivent sur coords impaires).
   local x0 = math.floor(math.min(x_from_abs, x_to_abs))
@@ -258,10 +275,10 @@ local function fill_track_abs(master_state, ref, bucket, x_from_abs, x_to_abs)
     for _, ex in ipairs(surface.find_entities_filtered({
       type = "straight-rail", position = pos, radius = 0.2 })) do
       if ex.direction % 8 == defines.direction.east % 8 then
-        if ex.name == RAIL_OVER then
+        if ex.name == over_name then
           has_over = true
           track_entity(bucket, ex)
-        elseif ex.name == RAIL then
+        elseif ex.name == rail_name then
           for i = #(master_state.rails or {}), 1, -1 do
             if master_state.rails[i] == ex then table.remove(master_state.rails, i) end
           end
@@ -271,7 +288,7 @@ local function fill_track_abs(master_state, ref, bucket, x_from_abs, x_to_abs)
     end
     if not has_over then
       local r = surface.create_entity({
-        name = RAIL_OVER, position = pos,
+        name = over_name, position = pos,
         direction = defines.direction.east, force = ref.force })
       if r then r.destructible = false; bucket[#bucket + 1] = r end
     end
@@ -490,19 +507,20 @@ end
 local function lay_east_rails(state, anchor)
   state.rails_east = state.rails_east or {}
   local surface = anchor.surface
+  local rail_name, over_name, ext_name = rail_names(surface)
   for x = EAST_RAIL_X_FROM, EAST_RAIL_X_TO, 2 do
     local pos = { anchor.position.x + x, anchor.position.y + RAIL_Y }
     -- Position sous le mur est (x<=18) → RAIL_OVER ; qui DÉPASSE (x>18) → RAIL_EXT
     -- (sélectionnable, prolongeable à la main).
-    local proto = (x > 18) and RAIL_EXT or RAIL_OVER
+    local proto = (x > 18) and ext_name or over_name
     local has_it = false
     for _, ex in ipairs(surface.find_entities_filtered({
       type = "straight-rail", position = pos, radius = 0.2 })) do
       if ex.direction % 8 == defines.direction.east % 8 then
-        if ex.name == RAIL_OVER or ex.name == RAIL_EXT then
+        if ex.name == over_name or ex.name == ext_name then
           has_it = true
           track_entity(state.rails_east, ex)
-        elseif ex.name == RAIL then
+        elseif ex.name == rail_name then
           -- Rail normal résiduel : le retirer (des rails du master si présent)
           -- pour libérer la position.
           for i = #(state.rails or {}), 1, -1 do
@@ -556,6 +574,7 @@ function composite.close_east(state, anchor)
   state.signal_east = nil
   destroy_east_rails(state)
   if anchor and anchor.valid then
+    local rail_name = rail_names(anchor.surface)
     local closed_end = {
       anchor.position.x + 17,
       anchor.position.y + RAIL_Y,
@@ -573,7 +592,7 @@ function composite.close_east(state, anchor)
         if ex.direction % 8 == defines.direction.east % 8 then present = true break end
       end
       if not present then
-        local r = place(anchor, RAIL, { x, RAIL_Y }, defines.direction.east)
+        local r = place(anchor, rail_name, { x, RAIL_Y }, defines.direction.east)
         if r then state.rails[#state.rails + 1] = r end
       end
     end
@@ -609,6 +628,7 @@ function composite.rebuild_chain_track(master_state, chain)
   -- l'ordre de retrait, indépendant du tracking par liste.
   local last = chain[#chain]
   if last and last.valid then
+    local rail_name, over_name = rail_names(last.surface)
     local ry = last.position.y + RAIL_Y
     local x_min = last.position.x + EAST_RAIL_X_TO + 1  -- au-delà de la sortie est légitime
     for _, r in ipairs(last.surface.find_entities_filtered({
@@ -616,7 +636,7 @@ function composite.rebuild_chain_track(master_state, chain)
       area = { { x_min, ry - 0.5 },
                { x_min + ORPHAN_RAIL_SCAN_DISTANCE, ry + 0.5 } },
     })) do
-      if r.valid and (r.name == RAIL or r.name == RAIL_OVER) then r.destroy() end
+      if r.valid and (r.name == rail_name or r.name == over_name) then r.destroy() end
     end
   end
 
@@ -696,6 +716,7 @@ end
 function composite.open_west(state)
   local e = state.entity
   if not (e and e.valid) then return end
+  local _, over_name, ext_name = rail_names(e.surface)
   for _, x in ipairs(WEST_CONNECT_XS) do
     local pos = { e.position.x + x, e.position.y + RAIL_Y }
     local occupied = false
@@ -703,7 +724,7 @@ function composite.open_west(state)
       type = "straight-rail", position = pos, radius = 0.2 })) do
       if ex.direction % 8 == defines.direction.east % 8 then
         occupied = true
-        if ex.name == RAIL_OVER or ex.name == RAIL_EXT then
+        if ex.name == over_name or ex.name == ext_name then
           track_entity(state.rails, ex)
         end
         break
@@ -713,7 +734,7 @@ function composite.open_west(state)
       -- Position sous le mur (|x|<=18) → RAIL_OVER (interne, non-sélectionnable).
       -- Position qui DÉPASSE le bâtiment (|x|>18) → RAIL_EXT (sélectionnable, pour
       -- que le joueur prolonge la voie à la main).
-      local proto = (math.abs(x) > 18) and RAIL_EXT or RAIL_OVER
+      local proto = (math.abs(x) > 18) and ext_name or over_name
       local r = place(e, proto, { x, RAIL_Y }, defines.direction.east)
       if r then state.rails[#state.rails + 1] = r end
     end
@@ -918,6 +939,7 @@ end
 function composite.lay_floor(state)
   local e = state.entity
   if not (e and e.valid) then return end
+  if composite.is_se_orbit(e.surface) then return end
   state.floor_saved = state.floor_saved or {}
   local surf = e.surface
   local saved = {}
@@ -1224,6 +1246,7 @@ function composite.rebuild_deco_track(master_state, chain)
   local function ext(anchor_state, xs)
     local e = anchor_state.entity
     if not (e and e.valid) then return end
+    local _, _, ext_name = rail_names(e.surface)
     for _, x in ipairs(xs) do
       local pos = { e.position.x + x, e.position.y + DECO_RAIL_Y }
       local occupied = false
@@ -1232,7 +1255,7 @@ function composite.rebuild_deco_track(master_state, chain)
         if r.direction % 8 == defines.direction.east % 8 then occupied = true break end
       end
       if not occupied then
-        local r = place(e, RAIL_EXT, { x, DECO_RAIL_Y }, defines.direction.east)
+        local r = place(e, ext_name, { x, DECO_RAIL_Y }, defines.direction.east)
         if r then master_state.rails_deco[#master_state.rails_deco + 1] = r end
       end
     end

@@ -113,12 +113,15 @@ quality.
 - **Clear a stuck train.** If a built train cannot leave, one click destroys it
   and refunds its cost.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry's
-  window from anywhere — no need to walk to it. One foundry (chain) per planet.
+  window from anywhere — no need to walk to it. One foundry (chain) per surface.
 
 ### Compatibility
 
 - **Space Age** — quality is supported end to end: a legendary blueprint asks for
   legendary components and builds a legendary train.
+- **Space Exploration** — in orbit, foundries and extensions use space rails and
+  preserve space platform tiles. Cover the full structure and rail connections
+  with space platform before building. On planets, they use regular rails.
 - **Pyanodon** — the technology and recipe follow the Py science progression.
 - **Nullius**.
 - **Mini Trains** and other mods with shorter or longer rolling stock — vehicles

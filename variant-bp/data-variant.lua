@@ -28,5 +28,6 @@ bpchest.picture = {
   height = 72,
   shift = { 0, -0.15 },
 }
+if mods["space-exploration"] then bpchest.se_allow_in_space = true end
 
 data:extend({ bpchest })

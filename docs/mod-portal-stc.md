@@ -147,12 +147,15 @@ Left untouched, every fuel is accepted in normal quality.
 - **Clear a stuck train.** If a built train cannot leave, one click destroys it
   and refunds its cost.
 - **Remote control.** A shortcut-bar button (or CTRL+ALT+F) opens the foundry
-  from anywhere. One foundry (chain) per planet.
+  from anywhere. One foundry (chain) per surface.
 
 ### Compatibility
 
 - **Space Age** — quality is supported end to end, including in the generated
   station names.
+- **Space Exploration** — in orbit, foundries and extensions use space rails and
+  preserve space platform tiles. Cover the full structure and rail connections
+  with space platform before building. On planets, they use regular rails.
 - **Pyanodon** — the technology and recipe follow the Py science progression.
 - **Nullius**.
 - **Mini Trains** and other mods with shorter or longer rolling stock — vehicles
