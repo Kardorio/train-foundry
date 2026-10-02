@@ -309,13 +309,23 @@ end
 -- visible. Electronic Locomotives donne à ses locos une catégorie dont les
 -- items sont cachés et injectés par script : la fonderie ne doit ni les
 -- demander ni les brûler, la loco est traitée comme une loco solaire.
+-- Factorio 2.1.20 a remplacé fuel_category (chaîne) par fuel_categories (liste).
+-- Les LuaItemPrototype lèvent une erreur quand on lit le champ absent : pcall
+-- est nécessaire pour conserver le support de 2.1.0–2.1.19.
+local function item_fuel_categories(item_proto)
+  local ok, cats = pcall(function() return item_proto.fuel_categories end)
+  if ok then return cats or {} end
+  local cat = item_proto.fuel_category
+  return cat and { cat } or {}
+end
+
 local real_category_cache = nil
 local function is_real_fuel_category(cat)
   if not real_category_cache then
     real_category_cache = {}
     for _, it in pairs(prototypes.item) do
       if it.fuel_value and it.fuel_value > 0 and not it.hidden then
-        for _, c in ipairs(it.fuel_categories or {}) do
+        for _, c in ipairs(item_fuel_categories(it)) do
           real_category_cache[c] = true
         end
       end
@@ -380,14 +390,12 @@ local function is_perishable(item_proto)
 end
 builder.is_perishable = is_perishable
 
--- Un item brûle-t-il dans l'une des catégories `cats` (set nom -> true) ? Depuis
--- 2.1.20 l'item porte une LISTE `fuel_categories` (l'ancien `fuel_category` a
--- disparu et y accéder lève une erreur).
+-- Un item brûle-t-il dans l'une des catégories `cats` (set nom -> true) ?
 local function burns_in(item_proto, cats)
   if not (item_proto and item_proto.fuel_value and item_proto.fuel_value > 0) then
     return false
   end
-  for _, cat in ipairs(item_proto.fuel_categories or {}) do
+  for _, cat in ipairs(item_fuel_categories(item_proto)) do
     if cats[cat] then return true end
   end
   return false
