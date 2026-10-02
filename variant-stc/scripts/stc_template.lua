@@ -271,7 +271,12 @@ local function schedule_for(shape, prof)
   -- storage) a son propre groupe. Le nombre de LOCOS n'y entre pas : un train
   -- custom double-traction partage donc le groupe (et les interruptions) du train
   -- par défaut de même forme — c'est voulu, ils desservent les mêmes gares.
-  local group_name = prefix .. group .. "[item=parameter-0]×" .. n
+  -- Un train sans carburant reçoit un groupe distinct : ses interruptions ne
+  -- doivent pas hériter du Refuel d'un train thermique de même forme. L'éclair
+  -- remplace l'icône TF en tête au lieu de rallonger le nom à la fin.
+  local group_icon = (#prof.fuels == 0)
+    and "[virtual-signal=signal-lightning]" or prefix
+  local group_name = group_icon .. group .. "[item=parameter-0]×" .. n
 
   local unload_name = prefix .. unload_icon() .. "[color=red]unload " .. kind_label(shape.kind)
     .. (shape.storage and " storage" or "") .. " " .. n .. "[/color]"
@@ -428,16 +433,19 @@ stc_template.slot_class = slot_class
 -- Les règles interdisent tout ce qui ferait diverger le nom de gare généré du
 -- nommage STC : un seul type de wagon (donc pas de mélange citerne/wagon, ni de
 -- mélange de tiers), une seule qualité de wagon (le nom n'en encode qu'une). Les
--- LOCOS sont libres (type, tier, qualité) : elles n'apparaissent dans aucun nom.
+-- LOCOS peuvent varier en type, tier et qualité, mais doivent toutes utiliser
+-- du carburant ou toutes fonctionner sans carburant.
 function stc_template.shape_of(custom)
   local slots = (custom and custom.slots) or {}
   local wagon_type, wagon_quality, n_wagons, n_locos = nil, nil, 0, 0
   -- Intersection des catégories de carburant des locos À BURNER. builder facture
   -- et insère UN SEUL carburant pour tout le train : si deux locos n'ont aucune
   -- catégorie commune, celle qui refuse le carburant retenu partirait à sec alors
-  -- que son plein a été prélevé de la réserve. On refuse donc le mélange. Une loco
-  -- sans burner (solaire) est neutre : elle n'a rien à recevoir.
-  local fuel_cats, n_burners = nil, 0
+  -- que son plein a été prélevé de la réserve. On refuse donc le mélange.
+  -- Une loco sans carburant (solaire ou alimentée par script) ne peut pas non
+  -- plus partager un train STC avec une loco thermique : Refuel regarderait
+  -- également sa soute toujours vide.
+  local fuel_cats, n_burners, n_fuelless = nil, 0, 0
   for _, s in ipairs(slots) do
     local class = slot_class(s)
     if not class then return nil, "bad-slot" end
@@ -454,6 +462,8 @@ function stc_template.shape_of(custom)
             if not cats[cat] then fuel_cats[cat] = nil end
           end
         end
+      else
+        n_fuelless = n_fuelless + 1
       end
     else
       local q = s.quality or "normal"
@@ -470,6 +480,10 @@ function stc_template.shape_of(custom)
   if n_wagons == 0 then return nil, "no-wagon" end
   if n_burners > 1 and not next(fuel_cats or {}) then
     return nil, "mixed-fuel"
+  end
+  -- Train exclusivement thermique ou exclusivement sans carburant.
+  if n_fuelless > 0 and n_burners > 0 then
+    return nil, "mixed-power"
   end
   return {
     kind = kind_of(wagon_type),

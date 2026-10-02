@@ -339,6 +339,15 @@ local function loco_fuel_categories(loco_name)
 end
 builder.loco_fuel_categories = loco_fuel_categories
 
+-- Loco alimentée par script : un burner, mais uniquement du carburant factice.
+local function is_script_powered(loco_name)
+  local proto = loco_name and prototypes.entity[loco_name]
+  local burner = proto and proto.burner_prototype
+  return burner ~= nil and next(burner.fuel_categories or {}) ~= nil
+    and not next(loco_fuel_categories(loco_name))
+end
+builder.is_script_powered = is_script_powered
+
 -- Catégories de carburant acceptées par les LOCOMOTIVES du stock (set
 -- fuel_category -> true). Vide si aucune loco à burner (ex. loco solaire).
 local function compatible_fuel_categories(stock)
@@ -892,10 +901,8 @@ local function unpowered_script_locos(train)
   for _, v in ipairs(train.locomotives.back_movers) do out[#out + 1] = v end
   local pending = {}
   for _, v in ipairs(out) do
-    local bp = v.prototype.burner_prototype
     local burner = v.burner
-    if bp and next(bp.fuel_categories or {}) and not next(loco_fuel_categories(v.name))
-        and burner and burner.remaining_burning_fuel <= 0 then
+    if is_script_powered(v.name) and burner and burner.remaining_burning_fuel <= 0 then
       pending[#pending + 1] = v
     end
   end
