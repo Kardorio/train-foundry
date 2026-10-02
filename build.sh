@@ -230,6 +230,7 @@ devlink() {
   # Code commun (aplati à la racine + scripts/).
   link_file "common/control.lua"          "control.lua"
   link_file "common/data-common.lua"       "data-common.lua"
+  link_file "common/data-final-fixes.lua"  "data-final-fixes.lua"
   link_file "common/scripts/builder.lua"   "scripts/builder.lua"
   link_file "common/scripts/composite.lua" "scripts/composite.lua"
   link_file "common/scripts/gui.lua"       "scripts/gui.lua"

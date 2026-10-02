@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.3
+Date: 2026-10-02
+  Compatibility:
+    - Space Exploration: foundries and extensions in orbit use space rails and preserve space
+      platform tiles. Placement requires a platform beneath the full structure and rail connections.
+      Ground surfaces keep regular rails.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.4.2
 Date: 2026-10-02
   Compatibility:

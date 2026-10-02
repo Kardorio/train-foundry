@@ -329,6 +329,11 @@ local function migrate_all()
                         names.recycle_stop, names.block_signal, names.block_combi,
                         names.deco_top, names.blocker,
                         names.blocker_top, names.blocker_bottom }
+  if prototypes.entity[names.rail_space] then
+    child_names[#child_names + 1] = names.rail_space
+    child_names[#child_names + 1] = names.rail_over_space
+    child_names[#child_names + 1] = names.rail_ext_space
+  end
   if names.has_bpchest then child_names[#child_names + 1] = names.bpchest end
   for _, surface in pairs(game.surfaces) do
     for _, ent in pairs(surface.find_entities_filtered({
@@ -743,6 +748,9 @@ local managed_extension_entities = {
   [names.rail] = true,
   [names.rail_over] = true,
   [names.rail_ext] = true,
+  [names.rail_space] = true,
+  [names.rail_over_space] = true,
+  [names.rail_ext_space] = true,
   [names.signal] = true,
   [names.gate] = true,
   [names.recycle_stop] = true,
@@ -941,6 +949,23 @@ local function on_built(event)
   end
   if e.name ~= MAIN then return end
 
+  if composite.is_se_orbit(e.surface) then
+    local px, py = e.position.x, e.position.y
+    local area = { { px - 21, py - 11 }, { px + 22, py + 12 } }
+    local void = e.surface.find_tiles_filtered({
+      area = area,
+      collision_mask = "empty_space_tile",
+    })
+    local ungenerated = e.surface.find_tiles_filtered({
+      area = area,
+      name = "out-of-map",
+    })
+    if #void > 0 or #ungenerated > 0 then
+      cancel_build(event, e, "orbit-platform-required")
+      return
+    end
+  end
+
   -- Une fois le maître posé, seul un fantôme créé par le bouton de son interface
   -- peut devenir une extension. La position attendue est recalculée au dernier
   -- moment : un vieux fantôme ne peut pas créer un trou dans une chaîne qui aurait
@@ -957,7 +982,7 @@ local function on_built(event)
   -- du landfill (gratuit — la fonderie est « amphibie »). Zone ±21/±12 : une tuile
   -- de marge au-delà de l'emprise 40×22 pour ne pas laisser de liseré d'eau contre
   -- les murs (bas et côtés).
-  do
+  if not composite.is_se_orbit(e.surface) then
     local px, py = e.position.x, e.position.y
     local waters = e.surface.find_tiles_filtered({
       area = { { px - 21, py - 12 }, { px + 21, py + 12 } },

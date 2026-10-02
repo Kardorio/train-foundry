@@ -545,6 +545,15 @@ local function tech_prereq(wanted, fallback)
   return out
 end
 
+if mods["space-exploration"] then
+  main.collision_mask.layers.empty_space_tile = true
+  for _, prototype in ipairs({ main, recycle_stop, block_signal, block_combi,
+      input, signal, combinator, combinator_req, pole, wall, gate,
+      blocker, blocker_top, blocker_bottom, deco_top }) do
+    prototype.se_allow_in_space = true
+  end
+end
+
 data:extend({
   { type = "recipe-category", name = names.dummy_cat },
 

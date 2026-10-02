@@ -50,8 +50,10 @@ vehicles per module). The chain is driven from a single window.
 - **Circuit network** — wire the connector and pick, in the Configuration window,
   whether to broadcast the internal stock or the missing components.
 - **Remote control** — a shortcut-bar button (or `CTRL+ALT+F`) opens the
-  foundry's window from anywhere. One foundry (chain) per planet.
-- Compatible with vanilla, Space Age and Nullius.
+  foundry's window from anywhere. One foundry (chain) per surface.
+- Compatible with vanilla, Space Age, Space Exploration, Pyanodon, Nullius,
+  Mini Trains and Electronic Locomotives. In orbit, Space Exploration's space
+  rails and platform tiles are used.
 
 ## Building from source
 
