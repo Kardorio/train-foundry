@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.4
+Date: 2026-10-28
+  Changes:
+    - Only the main foundry requires electric power; extensions no longer need their own supply.
+  Bugfixes:
+    - Train construction and recycling now pause when the main foundry has insufficient power,
+      and resume when power returns without losing components or progress.
+    - Fixed trains getting stuck in foundry gates after loading a save with a changed mod configuration.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.4.3
 Date: 2026-10-02
   Compatibility:

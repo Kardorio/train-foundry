@@ -1076,6 +1076,27 @@ function composite.rebuild_side(state, side, flags_state)
   end
 end
 
+function composite.update_gates(state, interval)
+  local e = state.entity
+  if not (e and e.valid) then return end
+  for _, side in ipairs({ state.side_west or {}, state.side_east or {} }) do
+    for _, gate in ipairs(side) do
+      if gate.valid and gate.type == "gate" then
+        local p = gate.position
+        local vehicles = e.surface.find_entities_filtered({
+          area = { { p.x - 4, p.y - 1 }, { p.x + 4, p.y + 1 } },
+          type = { "locomotive", "cargo-wagon", "fluid-wagon", "artillery-wagon" },
+          force = e.force,
+          limit = 1,
+        })
+        -- Recreated gates can close on a wagon after a configuration change;
+        -- a stationary train no longer triggers their native opening logic.
+        if vehicles[1] then gate.request_to_open(e.force, interval) end
+      end
+    end
+  end
+end
+
 local BLOCKER_LAYOUT_VERSION = 2
 composite.BLOCKER_LAYOUT_VERSION = BLOCKER_LAYOUT_VERSION
 

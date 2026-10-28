@@ -31,10 +31,12 @@ local function setup()
   end
   storage.main = assert(surface.create_entity({ name = building, position = { 0, 0 },
     force = "player", raise_built = true }))
-  storage.extension = assert(surface.create_entity({ name = building, position = { 36, 0 },
-    force = "player" }))
-  script.raise_script_built({ entity = storage.extension,
-    tags = { tf_extension_master = storage.main.unit_number } })
+  remote.call("tf-power-test", "request_extension", storage.main.unit_number)
+  local ghost = surface.find_entities_filtered({ name = "entity-ghost",
+    ghost_name = building, position = { 36, 0 }, radius = 0.1 })[1]
+  assert(ghost, "Extension request was blocked")
+  local _, extension = ghost.revive({ raise_revive = true })
+  storage.extension = assert(extension, "Requested extension could not be built")
   assert(#state().extensions == 1, "Extension was not attached")
   assert(surface.count_entities_filtered({ name = power_name }) == 1,
     "Only the main foundry may consume electricity")

@@ -746,6 +746,7 @@ local transient_types = {
 
 local managed_extension_entities = {
   [MAIN] = true,
+  [names.power] = true,
   [names.rail] = true,
   [names.rail_over] = true,
   [names.rail_ext] = true,
@@ -1307,6 +1308,7 @@ script.on_nth_tick(TICK_INTERVAL, function()
   -- (elles n'apportent que voie et capacité).
   local book_changed = {}
   for un, st in pairs(storage.foundries) do
+    composite.update_gates(st, TICK_INTERVAL)
     if st.entity and st.entity.valid
         and st.blocker_layout_version ~= composite.BLOCKER_LAYOUT_VERSION then
       composite.ensure_blocker(st)
