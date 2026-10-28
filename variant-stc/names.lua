@@ -17,6 +17,7 @@ return {
   combinator  = "tfstc-combinator",          -- émetteur du STOCK (fil rouge du poteau)
   combinator_req = "tfstc-combinator-req",   -- émetteur des DEMANDES (fil vert du poteau)
   pole        = "tfstc-pole",                 -- poteau : seul point d'accroche câble + alim.
+  power       = "tfstc-power",
   wall        = "tfstc-wall",               -- enceinte de murs du bâtiment
   gate        = "tfstc-gate",               -- portes aux sorties des voies
   blocker     = "tfstc-blocker",            -- ancien prototype conservé pour les migrations

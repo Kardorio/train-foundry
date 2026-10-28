@@ -319,13 +319,14 @@ local function migrate_all()
     ref(st.combinator)
     ref(st.combinator_req)
     ref(st.pole)
+    ref(st.power)
     -- Legacy : anneau de quais + 4 combinators d'anciennes versions.
     for _, c in ipairs(st.inputs or {}) do ref(c) end
     for _, c in ipairs(st.combinators or {}) do ref(c) end
   end
   local child_names = { names.rail, names.rail_over, names.rail_ext, names.input,
                         names.signal, names.combinator, names.combinator_req,
-                        names.pole, names.wall, names.gate,
+                        names.pole, names.power, names.wall, names.gate,
                         names.recycle_stop, names.block_signal, names.block_combi,
                         names.deco_top, names.blocker,
                         names.blocker_top, names.blocker_bottom }
@@ -564,7 +565,7 @@ local function ensure_work_renders(st)
 end
 
 local function refresh_chain_work_renders(master)
-  local active = master.work and master.work.phase == "building"
+  local active = master.power_available and master.work and master.work.phase == "building"
   for _, st in ipairs(chain_states(master)) do
     if active then
       destroy_idle_render(st)
@@ -1236,6 +1237,7 @@ end
 -- ----------------------------------------------------------------------------
 
 local function process_foundry(st)
+  if not st.power_available then return end
   local work = st.work
   if not work then
     if #st.queue == 0 then return end
@@ -1310,11 +1312,12 @@ script.on_nth_tick(TICK_INTERVAL, function()
       composite.ensure_blocker(st)
     end
     if st.role ~= "extension" and st.entity and st.entity.valid then
+      composite.update_power(st, TICK_INTERVAL)
       if names.has_bpchest then book_changed[un] = sync_templates(st) end
       process_foundry(st)
       refresh_chain_work_renders(st)
       builder.update_circuit(st)
-      builder.check_recycle(st)  -- déconstruit un train arrêté à la gare de recyclage
+      if st.power_available then builder.check_recycle(st) end
     end
   end
   -- Rafraîchit les fenêtres ouvertes : sections dynamiques à chaque tick, et

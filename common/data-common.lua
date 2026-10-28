@@ -470,8 +470,7 @@ local main = {
   collision_mask = { layers = { meltable = true } },
   crafting_categories = { names.dummy_cat },
   crafting_speed = 1,
-  energy_source = { type = "electric", usage_priority = "secondary-input",
-                    drain = "30kW" },
+  energy_source = { type = "void" },
   energy_usage = "450kW",
   allowed_effects = {},
   -- Socle statique de la fonderie ouverte : ateliers nord/sud et leurs fondations.
@@ -489,6 +488,31 @@ local main = {
       height = 1,
     },
   },
+}
+
+-- Masters and extensions share their building prototype; only masters receive
+-- this electric consumer, so extensions never request their own power.
+local power = {
+  type = "electric-energy-interface",
+  name = names.power,
+  localised_name = { "entity-name." .. MAIN },
+  icons = { { icon = ICON, icon_size = 64 } },
+  flags = { "not-on-map", "not-blueprintable", "not-deconstructable",
+            "not-upgradable", "hide-alt-info" },
+  hidden = true,
+  hidden_in_factoriopedia = true,
+  selectable_in_game = false,
+  collision_box = table.deepcopy(main.collision_box),
+  collision_mask = { layers = {} },
+  energy_source = {
+    type = "electric", usage_priority = "secondary-input",
+    buffer_capacity = "240kJ", input_flow_limit = "480kW",
+    output_flow_limit = "0W", drain = "30kW",
+  },
+  energy_usage = "0W",
+  energy_production = "0W",
+  gui_mode = "none",
+  picture = { filename = "__core__/graphics/empty.png", width = 1, height = 1 },
 }
 
 -- Prototype conservé vide pour charger sans rupture les sauvegardes qui possèdent
@@ -548,7 +572,7 @@ end
 if mods["space-exploration"] then
   main.collision_mask.layers.empty_space_tile = true
   for _, prototype in ipairs({ main, recycle_stop, block_signal, block_combi,
-      input, signal, combinator, combinator_req, pole, wall, gate,
+      input, signal, combinator, combinator_req, pole, power, wall, gate,
       blocker, blocker_top, blocker_bottom, deco_top }) do
     prototype.se_allow_in_space = true
   end
@@ -559,7 +583,7 @@ data:extend({
 
   platform_tile,
   main, rail, rail_over, rail_ext, recycle_stop, block_signal, block_combi,
-  input, signal, combinator, combinator_req, pole, wall, gate,
+  input, signal, combinator, combinator_req, pole, power, wall, gate,
   blocker, blocker_top, blocker_bottom, deco_top,
   preview_sprite,
   roof_sprite,

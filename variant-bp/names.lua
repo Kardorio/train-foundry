@@ -24,6 +24,7 @@ return {
   combinator  = "tf-combinator",
   combinator_req = "tf-combinator-req",     -- émetteur des DEMANDES (fil vert du poteau)
   pole        = "tf-pole",                   -- poteau : seul point d'accroche câble + alim.
+  power       = "tf-power",
   wall        = "tf-wall",                  -- enceinte de murs du bâtiment
   gate        = "tf-gate",                  -- portes aux sorties des voies
   blocker     = "tf-blocker",               -- ancien prototype conservé pour les migrations

@@ -807,6 +807,10 @@ function gui.refresh_work(player, state)
     return
   end
   flow.clear()
+  if state.power_available == false then
+    local warning = flow.add({ type = "label", caption = { "tf-gui.work-no-power" } })
+    warning.style.font_color = { 1, 0.4, 0.4 }
+  end
   local work = state.work
   if not work then
     -- Aucune construction en cours. Si un train est coincé sur la voie interne

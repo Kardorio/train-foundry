@@ -391,6 +391,26 @@ function composite.build(entity)
   return state
 end
 
+function composite.ensure_power(state)
+  local e = state.entity
+  if not (e and e.valid) or state.role == "extension" then return end
+  if state.power and state.power.valid then return end
+  state.power = e.surface.find_entities_filtered({
+    name = names.power, position = e.position, radius = 0.1,
+  })[1] or place(e, names.power, { 0, 0 }, defines.direction.north)
+end
+
+function composite.update_power(state, interval)
+  composite.ensure_power(state)
+  local power = state.power
+  local building = state.work and state.work.phase == "building"
+  local required = (building and 450000 or 30000) * interval / 60
+  state.power_available = power and power.valid and power.energy >= required or false
+  if state.power_available and building then
+    power.energy = power.energy - required
+  end
+end
+
 -- Crée le composite d'une EXTENSION (module accolé à droite d'une chaîne) :
 -- uniquement ses rails, prolongeant la voie du master. Pas de coffres, pas de
 -- signal, pas de GUI propre. `master_un` = l'unit_number du master de la
@@ -758,6 +778,7 @@ end
 function composite.ensure_circuit(state)
   local e = state.entity
   if not (e and e.valid) then return end
+  composite.ensure_power(state)
 
   local function at(offset, name)
     local pos = { e.position.x + offset[1], e.position.y + offset[2] }
@@ -1331,6 +1352,7 @@ function composite.destroy(state)
   if state.pole and state.pole.valid then
     state.pole.destroy()
   end
+  if state.power and state.power.valid then state.power.destroy() end
   -- Legacy : ancien tableau de 4 combinators.
   for _, c in ipairs(state.combinators or {}) do
     if c.valid then c.destroy() end
