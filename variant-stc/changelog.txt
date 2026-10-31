@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 1.4.5
+Date: 2026-10-31
+  Locale:
+    - French: the foundry's technology, item and recipe were still shown in English (name and
+      description). They are now translated, Nullius variants included.
+
+---------------------------------------------------------------------------------------------------
 Version: 1.4.4
 Date: 2026-10-28
   Changes:
