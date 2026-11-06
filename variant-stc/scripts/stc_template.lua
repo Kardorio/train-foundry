@@ -68,11 +68,52 @@ end
 local LOCO_ORIENT  = 0.75
 local WAGON_ORIENT = 0.25
 
+-- James' Electric Trains Plus : un wagon électrique (« *wagon-electric* ») posé
+-- dans un train sans loco électrique ou hybride est détruit par ce mod, qui
+-- rejette l'objet au sol. La fonderie rembourserait en plus ses composants : un
+-- wagon gratuit à chaque essai. Les compositions STC ne passant par aucun train
+-- réel, on applique ici sa règle, avec ses propres tests de nom.
+local function jtm_electric_wagon(name)
+  return script.active_mods["James-Train-Mod"] ~= nil
+    and name:find("wagon-electric", 1, true) ~= nil
+end
+
+local function jtm_powers_electric_wagons(loco_name)
+  return loco_name:find("ret-", 1, true) ~= nil
+    or loco_name:find("hybrid", 1, true) ~= nil
+    or loco_name:find("electric", 1, true) ~= nil
+end
+
+local function is_loco(name)
+  local proto = prototypes.entity[name]
+  return proto ~= nil and proto.type == "locomotive"
+end
+
+-- Loco de James pour un wagon électrique, au même tier que lui : hybride d'abord
+-- (elle roule aussi hors des rails alimentés), puis électrique. Repli : toute loco
+-- que James accepte. nil si aucune n'existe (réglages de James incohérents).
+local function jtm_locomotive_for(wagon_type)
+  local tier = tonumber(wagon_type:match("%-(%d+)$") or "1")
+  local suffix = (tier and tier > 1) and ("-" .. tier) or ""
+  for _, base in ipairs({ "james-hybrid-train", "james-electric-train" }) do
+    if is_loco(base .. suffix) then return base .. suffix end
+  end
+  for _, base in ipairs({ "james-hybrid-train", "james-electric-train" }) do
+    if is_loco(base) then return base end
+  end
+  for name, p in pairs(prototypes.entity) do
+    if p.type == "locomotive" and jtm_powers_electric_wagons(name) then return name end
+  end
+  return nil
+end
+
 -- Nom de la locomotive pour un wagon donné : même « type/tier » que le wagon
 -- (v1). Heuristique : on remplace le segment cargo-wagon / fluid-wagon par
 -- locomotive en gardant le préfixe mod et le tier. Repli : première locomotive
 -- du jeu. Un template CUSTOM n'en dépend pas : le joueur y choisit ses locos.
+-- nil seulement pour un wagon électrique de James sans loco compatible.
 local function locomotive_for(wagon_type)
+  if jtm_electric_wagon(wagon_type) then return jtm_locomotive_for(wagon_type) end
   local cand = wagon_type
     :gsub("cargo%-wagon", "locomotive")
     :gsub("fluid%-wagon", "locomotive")
@@ -84,6 +125,8 @@ local function locomotive_for(wagon_type)
   end
   return cand  -- dernier recours (create_entity échouera proprement en amont)
 end
+
+stc_template.locomotive_for = locomotive_for
 
 -- Nombre de slots de carburant d'une loco (0 si pas de burner → loco solaire).
 local function fuel_slots(loco_type)
@@ -365,9 +408,12 @@ end
 
 -- `model` = une entrée de get_models { kind, wagon_type, wagon_quality, wagons,
 -- group, storage }.
+-- Retourne nil, err (suffixe tf-gui.custom-err-<err>) si aucune loco ne peut
+-- tirer ces wagons.
 function stc_template.build(model)
   local n      = math.max(1, model.wagons or 1)
   local loco   = locomotive_for(model.wagon_type)
+  if not loco then return nil, "jtm-electric-wagon" end
   local wagons = wagon_run(model.wagon_type, n, model.wagon_quality)
 
   -- --- .stock : loco (tête) + N wagons -----------------------------------
@@ -446,11 +492,13 @@ function stc_template.shape_of(custom)
   -- plus partager un train STC avec une loco thermique : Refuel regarderait
   -- également sa soute toujours vide.
   local fuel_cats, n_burners, n_fuelless = nil, 0, 0
+  local jtm_powered = false
   for _, s in ipairs(slots) do
     local class = slot_class(s)
     if not class then return nil, "bad-slot" end
     if class == "loco" then
       n_locos = n_locos + 1
+      if jtm_powers_electric_wagons(s.name) then jtm_powered = true end
       local cats = builder.loco_fuel_categories(s.name)
       if next(cats) then
         n_burners = n_burners + 1
@@ -478,6 +526,9 @@ function stc_template.shape_of(custom)
   end
   if n_locos == 0 then return nil, "no-loco" end
   if n_wagons == 0 then return nil, "no-wagon" end
+  if jtm_electric_wagon(wagon_type) and not jtm_powered then
+    return nil, "jtm-electric-wagon"
+  end
   if n_burners > 1 and not next(fuel_cats or {}) then
     return nil, "mixed-fuel"
   end

@@ -371,6 +371,11 @@ end
 -- cargo/fluid-wagon → locomotive, repli 1ʳᵉ locomotive du jeu). Sert à afficher
 -- l'icône loco sur la tuile du modèle.
 local function loco_of(wagon_type)
+  -- Même choix que le template réellement construit (wagons électriques de
+  -- James compris). Si aucune loco ne convient, on retombe sur l'heuristique
+  -- pour l'icône : le clic refusera le modèle avec un message.
+  local loco = stc_template and wagon_type and stc_template.locomotive_for(wagon_type)
+  if loco then return loco end
   local cand = (wagon_type or ""):gsub("cargo%-wagon", "locomotive")
                                  :gsub("fluid%-wagon", "locomotive")
   local proto = prototypes.entity[cand]

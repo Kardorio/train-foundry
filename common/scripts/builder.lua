@@ -1007,7 +1007,8 @@ function builder.spawn(state, template, params, fuel_item, generic)
     end
   end
 
-  local spawned = {}
+  -- Slot et orientation de chaque véhicule (index = ordre du template).
+  local slots, dirs = {}, {}
   for i, s in ipairs(template.stock) do
     local dir, slot
     if flip_east then
@@ -1023,6 +1024,39 @@ function builder.spawn(state, template, params, fuel_item, generic)
       slot = i - 1              -- i=1 (tête) le plus à l'ouest
       dir = free_orient and bp_dir(s) or defines.direction.west
     end
+    slots[i], dirs[i] = slot, dir
+  end
+
+  -- ORDRE DE CRÉATION : locomotives d'abord, puis les wagons de proche en proche
+  -- en s'éloignant de la loco la plus proche. Chaque wagon naît ainsi déjà attelé
+  -- à un train motorisé. Indispensable pour les mods qui inspectent le train dans
+  -- leur handler de construction : James' Electric Trains détruit sur-le-champ un
+  -- wagon électrique créé sur un train sans loco électrique/hybride (il serait
+  -- seul sur la voie si on le créait avant la loco).
+  local loco_slots = {}
+  for i, s in ipairs(template.stock) do
+    local p = prototypes.entity[s.name]
+    if p and p.type == "locomotive" then loco_slots[#loco_slots + 1] = slots[i] end
+  end
+  local dist, order = {}, {}
+  for i = 1, count do
+    local d = math.huge
+    for _, ls in ipairs(loco_slots) do
+      d = math.min(d, math.abs(slots[i] - ls))
+    end
+    if d == math.huge then d = slots[i] end  -- aucune loco : d'un bout à l'autre
+    dist[i] = d
+    order[i] = i
+  end
+  table.sort(order, function(a, b)
+    if dist[a] ~= dist[b] then return dist[a] < dist[b] end
+    return a < b
+  end)
+
+  -- spawned[i] correspond à template.stock[i] (la suite du spawn en dépend).
+  local spawned = {}
+  for _, i in ipairs(order) do
+    local s, slot, dir = template.stock[i], slots[i], dirs[i]
     local v = e.surface.create_entity({
       name = s.name,
       quality = quality_of(s),
@@ -1034,8 +1068,10 @@ function builder.spawn(state, template, params, fuel_item, generic)
       -- les découvrent que par un événement de construction.
       raise_built = true,
     })
-    if not v then
-      for _, w in ipairs(spawned) do
+    -- `v` peut être invalide : un mod l'a détruit dans son handler de
+    -- script_raised_built (exécuté pendant create_entity).
+    if not (v and v.valid) then
+      for _, w in pairs(spawned) do
         if w.valid then w.destroy({ raise_destroy = true }) end
       end
       return nil, "spawn-failed"
@@ -1044,7 +1080,7 @@ function builder.spawn(state, template, params, fuel_item, generic)
     -- Grille d'équipement du BP (mods type Vehicle Equipment Grids) : on la
     -- recopie dans la grille du véhicule si le prototype en a une.
     apply_grid(v, s.grid)
-    spawned[#spawned + 1] = v
+    spawned[i] = v
   end
 
   -- Remplissage. Deux volets :

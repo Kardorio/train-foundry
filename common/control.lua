@@ -2124,7 +2124,12 @@ script.on_event(defines.events.on_gui_click, function(event)
     -- validation depuis st.stc_models pour reconstruire le template.
     local m = st.stc_models and st.stc_models[el.tags.index]
     if not m then return end
-    local t = stc_template.build(m)
+    local t, err = stc_template.build(m)
+    if not t then
+      player.create_local_flying_text({
+        text = { "tf-gui.custom-err-" .. err }, position = st.entity.position })
+      return
+    end
     -- On connaît le kind (item/fluid) → picker de ressource restreint à ce type.
     gui.open_params(player, st, el.tags.index, t, el.tags.index, m.kind)
   elseif names.source == "stc" and stc_template
